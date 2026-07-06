@@ -15,6 +15,12 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Firebase project that serves every white-label build's menu. All clients
+        // share one project; each reads its own tenant keyed by applicationId.
+        buildConfigField("String", "FIREBASE_PROJECT_ID", "\"flavorflow-digitalmenu\"")
+        // Optional Firebase Web API key; empty relies on public-read security rules.
+        buildConfigField("String", "FIRESTORE_API_KEY", "\"\"")
     }
 
     buildTypes {
@@ -30,6 +36,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

@@ -2,21 +2,15 @@ package dev.lssoftware.digitalmenu.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Warm, appetizing palette for the food-ordering UI.
-val Orange = Color(0xFFF4511E)
-val OrangeDark = Color(0xFFC63F00)
-val OrangeLight = Color(0xFFFF8A65)
-val Amber = Color(0xFFFFB300)
+// These use the stock Android Studio scaffold color names on purpose: FlavorFlow's
+// `apply-flavor-action` (project-type: android-native-compose) rewrites this file
+// per client at build time. The default values below are the app's own "Digital
+// Menu" brand (warm orange) used for the un-branded base build; each white-label
+// build overwrites them with that client's palette.
+val Purple80 = Color(0xFFFFB59D)
+val PurpleGrey80 = Color(0xFFF5C6A5)
+val Pink80 = Color(0xFFFFCC80)
 
-// Light scheme neutrals
-val WarmWhite = Color(0xFFFFFBF8)
-val WarmSurface = Color(0xFFFFFFFF)
-val WarmSurfaceVariant = Color(0xFFF3E9E3)
-val InkDark = Color(0xFF201A18)
-val InkMuted = Color(0xFF6F5B52)
-
-// Dark scheme neutrals
-val NightBackground = Color(0xFF1A1110)
-val NightSurface = Color(0xFF241A18)
-val NightSurfaceVariant = Color(0xFF33261F)
-val NightOnSurface = Color(0xFFF1E0D9)
+val Purple40 = Color(0xFFF4511E)
+val PurpleGrey40 = Color(0xFFC63F00)
+val Pink40 = Color(0xFFFFB300)

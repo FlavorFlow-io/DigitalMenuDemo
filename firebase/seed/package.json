@@ -1,0 +1,13 @@
+{
+  "name": "digitalmenu-firestore-seed",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Seeds the multi-tenant white-label menu into Cloud Firestore.",
+  "scripts": {
+    "seed": "node seed.mjs"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.2"
+  }
+}

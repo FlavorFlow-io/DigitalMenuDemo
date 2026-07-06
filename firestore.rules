@@ -1,0 +1,24 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // White-label menus are public and read-only. Each restaurant is a tenant
+    // keyed by the app's applicationId (e.g. restaurants/dev.lssoftware.digitalmenu).
+    // Writes are performed server-side only (the seed script / a future admin via
+    // the Firebase Admin SDK, which bypasses these rules).
+    match /restaurants/{clientId} {
+      allow read: if true;
+      allow write: if false;
+
+      match /categories/{categoryId} {
+        allow read: if true;
+        allow write: if false;
+      }
+
+      match /products/{productId} {
+        allow read: if true;
+        allow write: if false;
+      }
+    }
+  }
+}
