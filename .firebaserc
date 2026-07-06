@@ -1,5 +1,7 @@
 {
   "projects": {
     "default": "flavorflow-digitalmenu"
-  }
+  },
+  "targets": {},
+  "etags": {}
 }
