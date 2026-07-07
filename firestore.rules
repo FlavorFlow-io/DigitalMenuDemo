@@ -3,7 +3,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // White-label menus are public and read-only. Each restaurant is a tenant
-    // keyed by the app's applicationId (e.g. restaurants/dev.lssoftware.digitalmenu).
+    // keyed by the app's applicationId (e.g. restaurants/io.flavorflow.demo).
     // Writes are performed server-side only (the seed script / a future admin via
     // the Firebase Admin SDK, which bypasses these rules).
     match /restaurants/{clientId} {

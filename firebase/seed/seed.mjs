@@ -71,7 +71,7 @@ function imageUrl(name) {
 // menus, to prove one project serves distinct menus per white-label build.
 
 const tenants = {
-  "dev.lssoftware.digitalmenu": {
+  "io.flavorflow.demo": {
     name: "Digital Menu",
     categories: ["burgers", "pizzas", "salads", "drinks", "desserts"],
   },

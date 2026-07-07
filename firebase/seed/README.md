@@ -32,7 +32,7 @@ each white-label build automatically gets its own menu.
    FIREBASE_PROJECT_ID=flavorflow-digitalmenu npm run seed
    ```
 
-Seeds three tenants: `dev.lssoftware.digitalmenu` (base app, full menu),
+Seeds three tenants: `io.flavorflow.demo` (base app, full menu),
 `io.flavorflow.demo.acmeburgers`, and `io.flavorflow.demo.bellapizza`.
 
 To add a client, add an entry to `tenants` in `seed.mjs` and re-run.

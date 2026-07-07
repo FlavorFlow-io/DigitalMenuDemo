@@ -41,7 +41,7 @@ server-side (the seed script / Admin SDK).
 
 ## Getting started
 
-**Run the base (un-branded) app** — reads the `dev.lssoftware.digitalmenu` tenant:
+**Run the base (un-branded) app** — reads the `io.flavorflow.demo` tenant:
 
 ```bash
 ./gradlew assembleDebug

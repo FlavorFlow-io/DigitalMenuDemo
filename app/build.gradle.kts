@@ -9,7 +9,7 @@ android {
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "dev.lssoftware.digitalmenu"
+        applicationId = "io.flavorflow.demo"
         minSdk = 24
         versionCode = 1
         versionName = "1.0"
