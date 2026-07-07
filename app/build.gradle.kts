@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "dev.lssoftware.digitalmenu"
+    namespace = "io.flavorflow.demo"
     compileSdk = 37
 
     defaultConfig {
