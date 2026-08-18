@@ -13,13 +13,53 @@ name: White-Label Build
 on:
   push:
     branches: [ main ]
+
+  # FlavorFlow dispatches this workflow when a client is added to the bound
+  # project. Every input it sends must be declared here or GitHub rejects the
+  # dispatch with 422 "Unexpected inputs provided" — so these eight mirror
+  # workflowInputs() in the FlavorFlow backend exactly. All are optional so a
+  # plain "Run workflow" (and the push trigger above) still works, in which
+  # case they arrive empty and every client is built.
   workflow_dispatch:
+    inputs:
+      event:
+        description: 'FlavorFlow event name (e.g. client.added)'
+        required: false
+        default: ''
+      project_id:
+        description: 'FlavorFlow project id'
+        required: false
+        default: ''
+      project_name:
+        description: 'FlavorFlow project name'
+        required: false
+        default: ''
+      client_id:
+        description: 'Client id — when set, only this client is built'
+        required: false
+        default: ''
+      client_name:
+        description: 'Client name'
+        required: false
+        default: ''
+      app_name:
+        description: 'App name for the client'
+        required: false
+        default: ''
+      package_name:
+        description: 'Application id / package name for the client'
+        required: false
+        default: ''
+      payload:
+        description: 'Full event as JSON'
+        required: false
+        default: ''
 
 jobs:
   fetch-flavors:
     runs-on: ubuntu-latest
     outputs:
-      flavors: ${{ steps.fetch-flavors-action.outputs.flavors }}
+      flavors: ${{ steps.select.outputs.flavors }}
     steps:
       - uses: actions/checkout@v5
 
@@ -30,9 +70,60 @@ jobs:
           api-key: ${{ secrets.TEST_API_KEY }}
           project-id: ${{ vars.TEST_PROJECT_ID }}
 
+      # A client.added event concerns exactly one client, so building all of
+      # them would waste most of the run. `config` is the client JSON as a
+      # string and its `id` is the same id FlavorFlow sends as client_id.
+      - name: Select clients to build
+        id: select
+        env:
+          ALL_FLAVORS: ${{ steps.fetch-flavors-action.outputs.flavors }}
+          CLIENT_ID: ${{ inputs.client_id }}
+        run: |
+          set -euo pipefail
+          if [ -z "$CLIENT_ID" ]; then
+            echo "Building every client in the project."
+            selected="$ALL_FLAVORS"
+          else
+            selected=$(jq -c --arg id "$CLIENT_ID" \
+              '[.[] | select((.config | fromjson).id == $id)]' <<< "$ALL_FLAVORS")
+            count=$(jq 'length' <<< "$selected")
+            if [ "$count" -eq 0 ]; then
+              # Also the normal path for FlavorFlow's "send test event" button,
+              # whose synthetic client never matches a real one.
+              echo "::warning::No client matches id '$CLIENT_ID' — nothing to build. \
+          The dispatch itself succeeded; this is expected for a test event or a disabled client."
+            else
+              echo "Building only client '$CLIENT_ID'."
+            fi
+          fi
+          echo "flavors=$selected" >> "$GITHUB_OUTPUT"
+
+      - name: Summarise trigger
+        env:
+          EVENT: ${{ inputs.event }}
+          PROJECT_NAME: ${{ inputs.project_name }}
+          CLIENT_NAME: ${{ inputs.client_name }}
+          PACKAGE_NAME: ${{ inputs.package_name }}
+          SELECTED: ${{ steps.select.outputs.flavors }}
+        run: |
+          {
+            echo "### White-label build"
+            if [ -n "$EVENT" ]; then
+              echo "- Triggered by \`$EVENT\` from FlavorFlow"
+              echo "- Project: ${PROJECT_NAME:-—}"
+              echo "- Client: ${CLIENT_NAME:-—} (\`${PACKAGE_NAME:-—}\`)"
+            else
+              echo "- Triggered manually or by push — building every client"
+            fi
+            echo "- Clients to build: $(jq 'length' <<< "$SELECTED")"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   build-flavors:
     name: Build '${{ matrix.name }}'
     needs: fetch-flavors
+    # An empty matrix is a hard error, so skip the job when the filter above
+    # selected nothing rather than failing the run.
+    if: needs.fetch-flavors.outputs.flavors != '[]'
     runs-on: ubuntu-latest
     strategy:
       matrix:
