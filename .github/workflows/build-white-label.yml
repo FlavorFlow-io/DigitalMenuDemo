@@ -133,7 +133,7 @@ jobs:
 
       - name: Create the app in Play Console
         id: play
-        uses: FlavorFlow-io/google-play-automation/actions/create-play-app@dynamic-form
+        uses: FlavorFlow-io/create-play-app-action@main
         with:
           api-key: ${{ secrets.TEST_API_KEY }}
           project-id: ${{ inputs.project_id }}
