@@ -118,6 +118,33 @@ jobs:
             echo "- Clients to build: $(jq 'length' <<< "$SELECTED")"
           } >> "$GITHUB_STEP_SUMMARY"
 
+  # A real client.added carries a client_id; push and manual runs do not, and
+  # there is no single client to create an app for in that case.
+  #
+  # Deliberately not a dependency of build-flavors: creating the Play app can
+  # block for up to 30 minutes waiting for someone to sign in on the runner, and
+  # the APKs are useful regardless of whether that happened.
+  create-play-app:
+    name: Create Play app for '${{ inputs.client_name }}'
+    if: inputs.client_id != ''
+    runs-on: [self-hosted, macOS]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Create the app in Play Console
+        id: play
+        uses: FlavorFlow-io/google-play-automation/actions/create-play-app@dynamic-form
+        with:
+          api-key: ${{ secrets.TEST_API_KEY }}
+          project-id: ${{ inputs.project_id }}
+          client-id: ${{ inputs.client_id }}
+          app-name: ${{ inputs.app_name }}
+
+      - name: Report
+        run: |
+          echo "app-id=${{ steps.play.outputs.app-id }}"
+          echo "created=${{ steps.play.outputs.created }}"
+
   build-flavors:
     name: Build '${{ matrix.name }}'
     needs: fetch-flavors
