@@ -4,6 +4,21 @@ plugins {
     alias(libs.plugins.hotswan.compiler)
 }
 
+// Signing comes from the environment so the keystore never lives in the repo.
+// All of it absent is the normal case for a local debug build, and release then
+// stays unsigned rather than failing the build.
+val keystorePath = providers.environmentVariable("ANDROID_KEYSTORE_PATH").orNull
+val keystorePassword = providers.environmentVariable("ANDROID_KEYSTORE_PASSWORD").orNull
+val signingKeyAlias = providers.environmentVariable("ANDROID_KEY_ALIAS").orNull
+val signingKeyPassword = providers.environmentVariable("ANDROID_KEY_PASSWORD").orNull
+val hasSigning = !keystorePath.isNullOrBlank() && file(keystorePath).exists()
+
+// Play rejects a bundle whose versionCode it has seen before, so CI overrides
+// these per release. Each white-label client is its own Play app with its own
+// sequence, which is why this is passed in rather than derived from the repo.
+val buildVersionCode = (providers.gradleProperty("versionCode").orNull)?.toInt() ?: 1
+val buildVersionName = providers.gradleProperty("versionName").orNull ?: "1.0"
+
 android {
     namespace = "io.flavorflow.demo"
     compileSdk = 37
@@ -11,8 +26,8 @@ android {
     defaultConfig {
         applicationId = "io.flavorflow.demo"
         minSdk = 24
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = buildVersionCode
+        versionName = buildVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -23,8 +38,22 @@ android {
         buildConfigField("String", "FIRESTORE_API_KEY", "\"\"")
     }
 
+    signingConfigs {
+        if (hasSigning) {
+            create("release") {
+                storeFile = file(keystorePath!!)
+                storePassword = keystorePassword
+                keyAlias = signingKeyAlias
+                keyPassword = signingKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
+            // findByName, not getByName: null simply means "unsigned", which is
+            // what a developer building release locally should get.
+            signingConfig = signingConfigs.findByName("release")
             optimization {
                 enable = false
             }
