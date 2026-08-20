@@ -232,8 +232,10 @@ jobs:
         if: steps.signing.outputs.available == 'true'
         run: |
           set -euo pipefail
-          aab=$(find . -name '*.aab' -path '*release*' | head -1)
-          [ -n "$aab" ] || { echo "::error::No .aab produced"; exit 1; }
+          # Must be the packaged output, not intermediates/: the intermediary
+          # bundle is the pre-signing artifact and never carries a signature.
+          aab=$(find . -path '*/outputs/bundle/release/*.aab' | head -1)
+          [ -n "$aab" ] || { echo "::error::No .aab in outputs/bundle/release"; exit 1; }
           # An unsigned bundle still builds, so assert the signature block
           # rather than trusting a green build.
           if ! unzip -l "$aab" | grep -qiE 'META-INF/.*\.RSA'; then
