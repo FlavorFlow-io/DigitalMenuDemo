@@ -145,6 +145,68 @@ jobs:
           echo "app-id=${{ steps.play.outputs.app-id }}"
           echo "created=${{ steps.play.outputs.created }}"
 
+  # Separate from create-play-app because the two wait on different things:
+  # creating the app needs nobody but the console, while uploading a bundle
+  # needs the build to have finished. Keeping them apart means a 30-minute
+  # sign-in wait during creation does not also stall the build.
+  release-to-internal:
+    name: Internal release for '${{ inputs.client_name }}'
+    if: inputs.client_id != ''
+    needs: [create-play-app, build-flavors]
+    runs-on: [self-hosted, macOS]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check tester list is configured
+        id: testers
+        env:
+          EMAILS: ${{ vars.PLAY_TESTER_EMAILS }}
+        run: |
+          if [ -z "$EMAILS" ]; then
+            echo "::error::Set the PLAY_TESTER_EMAILS repository variable — an internal track cannot be created without at least one tester."
+            exit 1
+          fi
+          echo "ok=true" >> "$GITHUB_OUTPUT"
+
+      - name: Download the signed bundle
+        uses: actions/download-artifact@v7
+        with:
+          # By name would couple this to how fetch-flavors labels a client; the
+          # matrix is filtered to one client here, so there is exactly one.
+          pattern: bundle-*
+          merge-multiple: true
+          path: bundle
+
+      - name: Locate the bundle
+        id: aab
+        run: |
+          set -euo pipefail
+          aab=$(find bundle -name '*.aab' | head -1)
+          if [ -z "$aab" ]; then
+            echo "::error::No .aab was produced — the build job skips the bundle when signing secrets are missing."
+            exit 1
+          fi
+          count=$(find bundle -name '*.aab' | wc -l | tr -d ' ')
+          [ "$count" = "1" ] || echo "::warning::$count bundles found; using $aab"
+          echo "path=$(cd "$(dirname "$aab")" && pwd)/$(basename "$aab")" >> "$GITHUB_OUTPUT"
+          ls -lh "$aab"
+
+      - name: Upload to internal testing
+        uses: FlavorFlow-io/create-play-app-action@main
+        with:
+          api-key: ${{ secrets.TEST_API_KEY }}
+          project-id: ${{ inputs.project_id }}
+          client-id: ${{ inputs.client_id }}
+          app-name: ${{ inputs.app_name }}
+          # Creating is idempotent — it reports the existing app id — so this
+          # invocation resolves the app the previous job created, then fills the
+          # release form against it.
+          form: internal_testing_form
+          form-params: |
+            listName=${{ vars.PLAY_TESTER_LIST_NAME || 'Internal testers' }}
+            emails=${{ vars.PLAY_TESTER_EMAILS }}
+            aab=${{ steps.aab.outputs.path }}
+
   build-flavors:
     name: Build '${{ matrix.name }}'
     needs: fetch-flavors
