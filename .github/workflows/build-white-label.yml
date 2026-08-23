@@ -157,17 +157,6 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Check tester list is configured
-        id: testers
-        env:
-          EMAILS: ${{ vars.PLAY_TESTER_EMAILS }}
-        run: |
-          if [ -z "$EMAILS" ]; then
-            echo "::error::Set the PLAY_TESTER_EMAILS repository variable — an internal track cannot be created without at least one tester."
-            exit 1
-          fi
-          echo "ok=true" >> "$GITHUB_OUTPUT"
-
       - name: Download the signed bundle
         uses: actions/download-artifact@v7
         with:
@@ -202,8 +191,11 @@ jobs:
           # invocation resolves the app the previous job created, then fills the
           # release form against it.
           form: internal_testing_form
+          # Testers are optional: Play takes the release now and lets you add
+          # them afterwards. Set PLAY_TESTER_EMAILS to have the run create the
+          # list too; leave it unset and the form skips that half.
           form-params: |
-            listName=${{ vars.PLAY_TESTER_LIST_NAME || 'Internal testers' }}
+            listName=${{ vars.PLAY_TESTER_EMAILS && (vars.PLAY_TESTER_LIST_NAME || 'Internal testers') || '' }}
             emails=${{ vars.PLAY_TESTER_EMAILS }}
             aab=${{ steps.aab.outputs.path }}
 
