@@ -204,6 +204,9 @@ jobs:
           # release form against it.
           form: internal_testing_form
           developer-id: ${{ vars.PLAY_DEVELOPER_ID }}
+          # This job runs separately from the one that created the app, so the
+          # id has to travel with it rather than being assumed.
+          app-id: ${{ inputs.play_app_id }}
           # Testers are optional: Play takes the release now and lets you add
           # them afterwards. Set PLAY_TESTER_EMAILS to have the run create the
           # list too; leave it unset and the form skips that half.
