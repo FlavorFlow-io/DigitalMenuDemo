@@ -139,6 +139,9 @@ jobs:
           project-id: ${{ inputs.project_id }}
           client-id: ${{ inputs.client_id }}
           app-name: ${{ inputs.app_name }}
+          # "all" creates the app and fills every form the project's saved
+          # answers cover, in one browser session.
+          form: all
 
       - name: Report
         run: |
