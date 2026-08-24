@@ -54,6 +54,12 @@ on:
         description: 'Full event as JSON'
         required: false
         default: ''
+      force_create:
+        description: >-
+          Create a new Play app even if one is remembered. Needed when the
+          existing app has the wrong package name, which Play will not change.
+        required: false
+        default: 'false'
       play_app_id:
         description: >-
           Existing Play app id. Set it to resume against an app a previous run
@@ -151,6 +157,7 @@ jobs:
           # Without this the run stops on Play's developer-account chooser.
           developer-id: ${{ vars.PLAY_DEVELOPER_ID }}
           app-id: ${{ inputs.play_app_id }}
+          force-create: ${{ inputs.force_create }}
 
       - name: Report
         run: |
