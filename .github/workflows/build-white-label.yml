@@ -54,6 +54,12 @@ on:
         description: 'Full event as JSON'
         required: false
         default: ''
+      play_app_id:
+        description: >-
+          Existing Play app id. Set it to resume against an app a previous run
+          created, so creation is skipped instead of failing on the name.
+        required: false
+        default: ''
 
 jobs:
   fetch-flavors:
@@ -144,6 +150,7 @@ jobs:
           form: all
           # Without this the run stops on Play's developer-account chooser.
           developer-id: ${{ vars.PLAY_DEVELOPER_ID }}
+          app-id: ${{ inputs.play_app_id }}
 
       - name: Report
         run: |
