@@ -142,6 +142,8 @@ jobs:
           # "all" creates the app and fills every form the project's saved
           # answers cover, in one browser session.
           form: all
+          # Without this the run stops on Play's developer-account chooser.
+          developer-id: ${{ vars.PLAY_DEVELOPER_ID }}
 
       - name: Report
         run: |
@@ -194,6 +196,7 @@ jobs:
           # invocation resolves the app the previous job created, then fills the
           # release form against it.
           form: internal_testing_form
+          developer-id: ${{ vars.PLAY_DEVELOPER_ID }}
           # Testers are optional: Play takes the release now and lets you add
           # them afterwards. Set PLAY_TESTER_EMAILS to have the run create the
           # list too; leave it unset and the form skips that half.
