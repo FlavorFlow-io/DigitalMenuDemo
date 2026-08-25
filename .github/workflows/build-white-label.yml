@@ -261,6 +261,25 @@ jobs:
       - name: Generate store screenshots
         run: ./gradlew :app:storeScreenshots --stacktrace
 
+      # Play's listing icon is 512x512 and the launcher densities top out at
+      # 192, so it is generated from the same logo apply-flavor-action already
+      # downloaded rather than upscaled from a mipmap.
+      - name: Generate the store icon from the client logo
+        run: |
+          set -euo pipefail
+          logo=$(find assets/logos -type f \( -name '*.png' -o -name '*.jpg' -o -name '*.jpeg' -o -name '*.webp' \) 2>/dev/null | head -1)
+          if [ -z "$logo" ]; then
+            echo "::warning::No client logo found — the listing will have no icon."
+            exit 0
+          fi
+          out=app/screenshots/en-US/images
+          mkdir -p "$out"
+          # Pad rather than crop: a non-square logo keeps its proportions and
+          # Play gets the exact square it requires.
+          convert "$logo" -resize 512x512 -background none -gravity center \
+            -extent 512x512 "$out/icon.png"
+          identify -format '  icon: %wx%h %m\n' "$out/icon.png"
+
       - name: Upload store screenshots
         uses: actions/upload-artifact@v7
         with:
