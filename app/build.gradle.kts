@@ -1,5 +1,8 @@
 plugins {
     alias(libs.plugins.android.application)
+    // Renders the store screenshots and feature graphic from the app's own
+    // Compose UI, so the listing art carries whatever branding the build has.
+    id("io.github.lucianosantosdev.storescreenshots")
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.hotswan.compiler)
 }
@@ -91,4 +94,9 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.hotswan.preview)
+}
+
+storeScreenshots {
+    // Fastlane's layout, so the same folder can feed an upload either way.
+    destDir = layout.projectDirectory.dir("screenshots")
 }

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copy shown on the screenshot banners and the feature graphic.
+
+  Lives in the screenshots source set so it ships with the listing art and never
+  reaches the app itself. {app_name} is not substituted here — the branding
+  arrives through the theme and the app name the build was branded with.
+-->
+<resources>
+    <string name="screenshot_menu_title">The whole menu, on your phone</string>
+    <string name="screenshot_menu_desc">Browse by category with photos and prices</string>
+
+    <string name="screenshot_cart_title">Build your order as you browse</string>
+    <string name="screenshot_cart_desc">Tap to add, adjust quantities inline</string>
+
+    <string name="screenshot_checkout_title">Order without waiting</string>
+    <string name="screenshot_checkout_desc">Send it from your table and pay your way</string>
+
+    <string name="screenshot_feature_title">Your menu, ready to order</string>
+    <string name="screenshot_feature_desc">Browse, order and pay — from the table</string>
+</resources>

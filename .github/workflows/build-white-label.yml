@@ -256,6 +256,18 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle/libs.versions.toml') }}
           restore-keys: ${{ runner.os }}-gradle
 
+      # After apply-flavor-action, so the images carry this client's branding:
+      # they are rendered from the app's own composables under its own theme.
+      - name: Generate store screenshots
+        run: ./gradlew :app:storeScreenshots --stacktrace
+
+      - name: Upload store screenshots
+        uses: actions/upload-artifact@v7
+        with:
+          name: listing-${{ matrix.name }}
+          path: app/screenshots/**/*.png
+          if-no-files-found: error
+
       - name: Build APK
         run: ./gradlew assembleDebug --stacktrace
 
