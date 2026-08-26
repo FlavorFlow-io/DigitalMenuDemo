@@ -1,0 +1,343 @@
+# Publishes one client's build to Google Play.
+#
+# There is a single decision in here, and it is the reason this is one workflow
+# rather than two: Google refuses the *first* artifact of a new app over the
+# Play Developer API, so a brand-new client has to go through the console once.
+# After that the API opens up and everything can be done headlessly. Rather
+# than ask a human which case they are in, the `gate` job asks Play.
+#
+#   never published  → browser automation on a self-hosted runner
+#   already published → fastlane, on a hosted runner, no browser at all
+#
+# Setup (Settings → Secrets and variables → Actions):
+#   Secret   TEST_API_KEY                = FlavorFlow project API key
+#   Secret   PLAY_SERVICE_ACCOUNT_JSON   = Play service-account key, whole JSON
+#   Variable PLAY_DEVELOPER_ID           = Play developer id
+#   Variable PLAY_TESTER_EMAILS          = optional, comma-separated
+name: White-Label Release
+
+on:
+  # Called by build-white-label.yml once the bundle exists. workflow_call
+  # inputs are not subject to the ten-input dispatch cap, which is why the
+  # publish flag can live here and not there.
+  workflow_call:
+    inputs:
+      project_id:            { type: string,  required: false, default: '' }
+      client_id:             { type: string,  required: false, default: '' }
+      client_name:           { type: string,  required: false, default: '' }
+      app_name:              { type: string,  required: false, default: '' }
+      package_name:          { type: string,  required: false, default: '' }
+      play_app_id:           { type: string,  required: false, default: '' }
+      force_create:          { type: string,  required: false, default: 'false' }
+      version_code:          { type: string,  required: false, default: '' }
+      countries:             { type: string,  required: false, default: '' }
+      publish_to_production: { type: boolean, required: false, default: false }
+
+  workflow_dispatch:
+    inputs:
+      project_id:
+        description: 'FlavorFlow project id'
+        required: false
+        default: ''
+      client_id:
+        description: 'FlavorFlow client id to publish'
+        required: false
+        default: ''
+      client_name:
+        description: 'Client name (labels the run)'
+        required: false
+        default: ''
+      app_name:
+        description: 'App name'
+        required: false
+        default: ''
+      package_name:
+        description: 'Package name — the gate and fastlane both need it'
+        required: false
+        default: ''
+      play_app_id:
+        description: 'Existing Play app id, to resume against an app a previous run created'
+        required: false
+        default: ''
+      force_create:
+        description: 'Create a new Play app even if one is remembered'
+        required: false
+        default: 'false'
+      version_code:
+        description: 'Version code to publish or promote (defaults to this run number)'
+        required: false
+        default: ''
+      countries:
+        description: >-
+          Countries for a production release, as Play spells them, comma
+          separated. Blank means every country.
+        required: false
+        default: ''
+      publish_to_production:
+        description: >-
+          Promote this release to production. Off by default: it is public and
+          it is not reversible.
+        type: boolean
+        required: false
+        default: false
+
+jobs:
+  # Asks Play whether the API will accept an upload for this package. The same
+  # question fastlane would hit on its first call, asked cheaply and without
+  # publishing anything: an edit is opened and immediately deleted.
+  gate:
+    name: Can the API publish this package?
+    runs-on: ubuntu-latest
+    if: inputs.client_id != ''
+    outputs:
+      api_ready: ${{ steps.check.outputs.ready }}
+    steps:
+      - name: Probe the Play Developer API
+        id: check
+        env:
+          KEY_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          PACKAGE: ${{ inputs.package_name }}
+        run: |
+          set -euo pipefail
+          # No key or no package name is not a failure: it just means this run
+          # takes the console path, which needs neither.
+          if [ -z "$KEY_JSON" ]; then
+            echo "::notice::No PLAY_SERVICE_ACCOUNT_JSON — taking the console path."
+            echo "ready=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if [ -z "$PACKAGE" ]; then
+            echo "::notice::No package name supplied — taking the console path."
+            echo "ready=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+
+          key="$RUNNER_TEMP/play-key.json"
+          printf '%s' "$KEY_JSON" > "$key"; chmod 600 "$key"
+          # A throwaway gcloud config, so this never disturbs anything else on
+          # the runner.
+          export CLOUDSDK_CONFIG="$RUNNER_TEMP/gcloud"
+          gcloud auth activate-service-account --key-file="$key" --quiet >/dev/null 2>&1 || {
+            echo "::warning::The service-account key was rejected — taking the console path."
+            rm -f "$key"; echo "ready=false" >> "$GITHUB_OUTPUT"; exit 0; }
+          token=$(gcloud auth print-access-token \
+            --scopes=https://www.googleapis.com/auth/androidpublisher 2>/dev/null || true)
+          rm -f "$key"
+          [ -n "$token" ] || { echo "::warning::Could not mint a token — console path."
+            echo "ready=false" >> "$GITHUB_OUTPUT"; exit 0; }
+
+          api=https://androidpublisher.googleapis.com/androidpublisher/v3
+          body="$RUNNER_TEMP/edit.json"
+          status=$(curl -sS -o "$body" -w '%{http_code}' -X POST \
+            -H "Authorization: Bearer $token" -H 'Content-Length: 0' \
+            "$api/applications/$PACKAGE/edits")
+          case "$status" in
+            200)
+              id=$(jq -r '.id // empty' "$body")
+              [ -n "$id" ] && curl -sS -o /dev/null -X DELETE \
+                -H "Authorization: Bearer $token" "$api/applications/$PACKAGE/edits/$id" || true
+              echo "::notice::$PACKAGE is published — fastlane can take this one."
+              echo "ready=true" >> "$GITHUB_OUTPUT" ;;
+            404)
+              echo "::notice::Play does not know $PACKAGE yet — first release goes through the console."
+              echo "ready=false" >> "$GITHUB_OUTPUT" ;;
+            403)
+              echo "::warning::The key cannot edit $PACKAGE (a fresh grant takes up to 36h). Console path."
+              echo "ready=false" >> "$GITHUB_OUTPUT" ;;
+            *)
+              echo "::warning::Unexpected HTTP $status from the Play API — console path."
+              cat "$body" || true
+              echo "ready=false" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+  # The console path. Creates the app if it is not there, fills every form the
+  # project's saved answers cover, then uploads the bundle and publishes it to
+  # internal testing — all in one browser session on a signed-in profile.
+  first-release:
+    name: First release for '${{ inputs.client_name }}' (console)
+    needs: gate
+    if: needs.gate.outputs.api_ready == 'false'
+    runs-on: [self-hosted, macOS]
+    outputs:
+      app_id: ${{ steps.play.outputs.app-id }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Download the signed bundle
+        uses: actions/download-artifact@v7
+        with:
+          pattern: bundle-*
+          merge-multiple: true
+          path: bundle
+
+      - name: Locate the bundle
+        id: aab
+        run: |
+          set -euo pipefail
+          aab=$(find bundle -name '*.aab' | head -1)
+          if [ -z "$aab" ]; then
+            echo "::error::No .aab was produced — the build skips the bundle when signing secrets are missing."
+            exit 1
+          fi
+          echo "path=$(cd "$(dirname "$aab")" && pwd)/$(basename "$aab")" >> "$GITHUB_OUTPUT"
+          ls -lh "$aab"
+
+      - name: Create the app and fill its forms
+        id: play
+        uses: FlavorFlow-io/create-play-app-action@main
+        with:
+          api-key: ${{ secrets.TEST_API_KEY }}
+          project-id: ${{ inputs.project_id }}
+          client-id: ${{ inputs.client_id }}
+          app-name: ${{ inputs.app_name }}
+          # "all" is filtered by the project's saved answers, so a form the
+          # project has no answers for simply does not run.
+          form: all
+          developer-id: ${{ vars.PLAY_DEVELOPER_ID }}
+          app-id: ${{ inputs.play_app_id }}
+          force-create: ${{ inputs.force_create }}
+
+      - name: Publish to internal testing
+        uses: FlavorFlow-io/create-play-app-action@main
+        with:
+          api-key: ${{ secrets.TEST_API_KEY }}
+          project-id: ${{ inputs.project_id }}
+          client-id: ${{ inputs.client_id }}
+          app-name: ${{ inputs.app_name }}
+          form: internal_testing_form
+          developer-id: ${{ vars.PLAY_DEVELOPER_ID }}
+          app-id: ${{ steps.play.outputs.app-id || inputs.play_app_id }}
+          # Testers are optional — Play takes the release without them and lets
+          # you add them later, so an unset PLAY_TESTER_EMAILS skips that half.
+          form-params: |
+            listName=${{ vars.PLAY_TESTER_EMAILS && (vars.PLAY_TESTER_LIST_NAME || 'Internal testers') || '' }}
+            emails=${{ vars.PLAY_TESTER_EMAILS }}
+            aab=${{ steps.aab.outputs.path }}
+
+      - name: Report
+        run: |
+          {
+            echo "### First release (console)"
+            echo "- App id: \`${{ steps.play.outputs.app-id }}\`"
+            echo "- Created this run: ${{ steps.play.outputs.created }}"
+            echo ""
+            echo "This package is now published, so every later run takes the fastlane path."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # The fastlane path. No browser, no self-hosted runner, no signed-in session.
+  internal-release:
+    name: Internal release for '${{ inputs.client_name }}' (fastlane)
+    needs: gate
+    if: needs.gate.outputs.api_ready == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download the signed bundle
+        uses: actions/download-artifact@v7
+        with:
+          pattern: bundle-*
+          merge-multiple: true
+          path: bundle
+
+      - name: Locate the bundle
+        id: aab
+        run: |
+          set -euo pipefail
+          aab=$(find bundle -name '*.aab' | head -1)
+          [ -n "$aab" ] || { echo "::error::No .aab to upload."; exit 1; }
+          echo "path=$(cd "$(dirname "$aab")" && pwd)/$(basename "$aab")" >> "$GITHUB_OUTPUT"
+          ls -lh "$aab"
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+
+      - name: Install fastlane
+        run: gem install fastlane -N --no-document
+
+      - name: Upload to internal testing
+        env:
+          # json_key_data takes the key as a value, so it never lands on disk.
+          SUPPLY_JSON_KEY_DATA: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          FASTLANE_SKIP_UPDATE_CHECK: '1'
+          FASTLANE_HIDE_CHANGELOG: '1'
+          FASTLANE_OPT_OUT_USAGE: '1'
+        run: |
+          set -euo pipefail
+          fastlane supply \
+            --package_name '${{ inputs.package_name }}' \
+            --aab '${{ steps.aab.outputs.path }}' \
+            --track internal \
+            --release_status completed \
+            --skip_upload_metadata true --skip_upload_images true \
+            --skip_upload_screenshots true --skip_upload_changelogs true
+
+  # Production is deliberately its own job behind its own flag. Everything
+  # before this point is reversible — a draft can be discarded, an internal
+  # release only reaches testers — and this step is neither.
+  promote-to-production:
+    name: Promote '${{ inputs.client_name }}' to production
+    needs: [gate, first-release, internal-release]
+    # Runs when asked for, and only if whichever release path applied did not
+    # fail. `always()` is needed because exactly one of the two always skips.
+    if: >-
+      always() && inputs.publish_to_production &&
+      needs.first-release.result != 'failure' &&
+      needs.internal-release.result != 'failure' &&
+      (needs.first-release.result == 'success' || needs.internal-release.result == 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve the version code
+        id: vc
+        env:
+          SUPPLIED: ${{ inputs.version_code }}
+        run: |
+          set -euo pipefail
+          # The build stamps versionCode with the run number, and a called
+          # workflow shares its caller's run — so this matches what was built
+          # unless someone names a different one.
+          code="${SUPPLIED:-${{ github.run_number }}}"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "Promoting version code $code"
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+
+      - name: Install fastlane
+        run: gem install fastlane -N --no-document
+
+      # Countries are a property of the production track, and the Play API
+      # cannot set them — only the console can. A production release with none
+      # selected is rejected, so this has to be said out loud rather than
+      # discovered as a failed promotion.
+      - name: Note the country requirement
+        if: inputs.countries != ''
+        run: |
+          echo "::warning::countries='${{ inputs.countries }}' was supplied, but the Play API \
+          cannot set track countries. Set them once in the console, or run \
+          production_countries_form through the console action."
+
+      - name: Promote to production
+        env:
+          SUPPLY_JSON_KEY_DATA: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          FASTLANE_SKIP_UPDATE_CHECK: '1'
+          FASTLANE_HIDE_CHANGELOG: '1'
+          FASTLANE_OPT_OUT_USAGE: '1'
+        run: |
+          set -euo pipefail
+          fastlane supply \
+            --package_name '${{ inputs.package_name }}' \
+            --track internal \
+            --track_promote_to production \
+            --version_code '${{ steps.vc.outputs.code }}' \
+            --release_status completed \
+            --skip_upload_apk true --skip_upload_aab true \
+            --skip_upload_metadata true --skip_upload_images true \
+            --skip_upload_screenshots true --skip_upload_changelogs true
+
+      - name: Report
+        run: |
+          {
+            echo "### Promoted to production"
+            echo "- Package: \`${{ inputs.package_name }}\`"
+            echo "- Version code: \`${{ steps.vc.outputs.code }}\`"
+            echo "- Now in review with Google."
+          } >> "$GITHUB_STEP_SUMMARY"

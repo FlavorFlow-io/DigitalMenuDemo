@@ -4,6 +4,9 @@
 # 2. apply-flavor-action   → rewrites theme (Color.kt/Theme.kt), app_name,
 #                            applicationId and launcher icon for that client
 # 3. ./gradlew assembleDebug → builds the APK, uploaded as a run artifact
+# 4. release-white-label.yml  → publishes that build to Play, picking the
+#                               console or the fastlane path by asking Play
+#                               whether the package is published yet
 #
 # Setup (Settings → Secrets and variables → Actions):
 #   Secret   TEST_API_KEY     = your FlavorFlow project API key
@@ -130,97 +133,31 @@ jobs:
             echo "- Clients to build: $(jq 'length' <<< "$SELECTED")"
           } >> "$GITHUB_STEP_SUMMARY"
 
-  # A real client.added carries a client_id; push and manual runs do not, and
-  # there is no single client to create an app for in that case.
+  # Publishing is a separate workflow, not more jobs here, for a concrete
+  # reason: workflow_dispatch allows at most ten inputs and the ten above are
+  # already spoken for by FlavorFlow's event contract. A called workflow has no
+  # such cap, which is where the production flag can live.
   #
-  # Deliberately not a dependency of build-flavors: creating the Play app can
-  # block for up to 30 minutes waiting for someone to sign in on the runner, and
-  # the APKs are useful regardless of whether that happened.
-  create-play-app:
-    name: Create Play app for '${{ inputs.client_name }}'
+  # Not gated on the build succeeding for every client: this dispatch concerns
+  # one client, and the release workflow fails on its own if that bundle is
+  # missing.
+  release:
+    name: Release '${{ inputs.client_name }}'
+    needs: build-flavors
     if: inputs.client_id != ''
-    runs-on: [self-hosted, macOS]
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Create the app in Play Console
-        id: play
-        uses: FlavorFlow-io/create-play-app-action@main
-        with:
-          api-key: ${{ secrets.TEST_API_KEY }}
-          project-id: ${{ inputs.project_id }}
-          client-id: ${{ inputs.client_id }}
-          app-name: ${{ inputs.app_name }}
-          # "all" creates the app and fills every form the project's saved
-          # answers cover, in one browser session.
-          form: all
-          # Without this the run stops on Play's developer-account chooser.
-          developer-id: ${{ vars.PLAY_DEVELOPER_ID }}
-          app-id: ${{ inputs.play_app_id }}
-          force-create: ${{ inputs.force_create }}
-
-      - name: Report
-        run: |
-          echo "app-id=${{ steps.play.outputs.app-id }}"
-          echo "created=${{ steps.play.outputs.created }}"
-
-  # Separate from create-play-app because the two wait on different things:
-  # creating the app needs nobody but the console, while uploading a bundle
-  # needs the build to have finished. Keeping them apart means a 30-minute
-  # sign-in wait during creation does not also stall the build.
-  release-to-internal:
-    name: Internal release for '${{ inputs.client_name }}'
-    if: inputs.client_id != ''
-    needs: [create-play-app, build-flavors]
-    runs-on: [self-hosted, macOS]
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Download the signed bundle
-        uses: actions/download-artifact@v7
-        with:
-          # By name would couple this to how fetch-flavors labels a client; the
-          # matrix is filtered to one client here, so there is exactly one.
-          pattern: bundle-*
-          merge-multiple: true
-          path: bundle
-
-      - name: Locate the bundle
-        id: aab
-        run: |
-          set -euo pipefail
-          aab=$(find bundle -name '*.aab' | head -1)
-          if [ -z "$aab" ]; then
-            echo "::error::No .aab was produced — the build job skips the bundle when signing secrets are missing."
-            exit 1
-          fi
-          count=$(find bundle -name '*.aab' | wc -l | tr -d ' ')
-          [ "$count" = "1" ] || echo "::warning::$count bundles found; using $aab"
-          echo "path=$(cd "$(dirname "$aab")" && pwd)/$(basename "$aab")" >> "$GITHUB_OUTPUT"
-          ls -lh "$aab"
-
-      - name: Upload to internal testing
-        uses: FlavorFlow-io/create-play-app-action@main
-        with:
-          api-key: ${{ secrets.TEST_API_KEY }}
-          project-id: ${{ inputs.project_id }}
-          client-id: ${{ inputs.client_id }}
-          app-name: ${{ inputs.app_name }}
-          # Creating is idempotent — it reports the existing app id — so this
-          # invocation resolves the app the previous job created, then fills the
-          # release form against it.
-          form: internal_testing_form
-          developer-id: ${{ vars.PLAY_DEVELOPER_ID }}
-          # This job runs separately from the one that created the app, so the
-          # id has to travel with it rather than being assumed.
-          app-id: ${{ inputs.play_app_id }}
-          # Testers are optional: Play takes the release now and lets you add
-          # them afterwards. Set PLAY_TESTER_EMAILS to have the run create the
-          # list too; leave it unset and the form skips that half.
-          form-params: |
-            listName=${{ vars.PLAY_TESTER_EMAILS && (vars.PLAY_TESTER_LIST_NAME || 'Internal testers') || '' }}
-            emails=${{ vars.PLAY_TESTER_EMAILS }}
-            aab=${{ steps.aab.outputs.path }}
+    uses: ./.github/workflows/release-white-label.yml
+    with:
+      project_id: ${{ inputs.project_id }}
+      client_id: ${{ inputs.client_id }}
+      client_name: ${{ inputs.client_name }}
+      app_name: ${{ inputs.app_name }}
+      package_name: ${{ inputs.package_name }}
+      play_app_id: ${{ inputs.play_app_id }}
+      force_create: ${{ inputs.force_create }}
+      # An automated client.added never ships to production. Promotion is a
+      # deliberate act: run White-Label Release by hand with the flag set.
+      publish_to_production: false
+    secrets: inherit
 
   build-flavors:
     name: Build '${{ matrix.name }}'
