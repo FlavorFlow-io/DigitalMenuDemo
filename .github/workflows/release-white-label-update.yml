@@ -1,31 +1,21 @@
 # Ships a new build of a client whose app already exists in Google Play.
 #
-# Everything here goes through the Play Developer API, so it runs on a hosted
-# runner with no browser and no signed-in session. That is only possible once
-# the package has had a first release made through the console — Google refuses
-# the first artifact of a new app over the API. create-play-app.yml is what
-# gets a client to that point; this is every release after it.
+# Builds the client, then uploads through the Play Developer API — no browser,
+# no self-hosted runner, no signed-in session. That is only possible once the
+# package has had a first release made through the console, because Google
+# refuses the first artifact of a new app over the API. create-play-app.yml is
+# what gets a client to that point; this is every release after it.
+#
+# The developer account is read off the signed-in session when promoting, so
+# there is nothing to configure for it.
 #
 # Setup (Settings → Secrets and variables → Actions):
 #   Secret   TEST_API_KEY               = FlavorFlow project API key
 #   Secret   PLAY_SERVICE_ACCOUNT_JSON  = Play service-account key, whole JSON
-#   Variable PLAY_DEVELOPER_ID          = Play developer id
+#   Variable TEST_PROJECT_ID            = FlavorFlow project id
 name: Release White-Label Update
 
 on:
-  # Called by build-white-label.yml when the gate says the API will take this
-  # package. workflow_call inputs are not subject to the ten-input dispatch cap.
-  workflow_call:
-    inputs:
-      project_id:            { type: string,  required: false, default: '' }
-      client_id:             { type: string,  required: false, default: '' }
-      client_name:           { type: string,  required: false, default: '' }
-      app_name:              { type: string,  required: false, default: '' }
-      package_name:          { type: string,  required: false, default: '' }
-      play_app_id:           { type: string,  required: false, default: '' }
-      countries:             { type: string,  required: false, default: '' }
-      publish_to_production: { type: boolean, required: false, default: false }
-
   workflow_dispatch:
     inputs:
       project_id:
@@ -33,7 +23,7 @@ on:
         required: false
         default: ''
       client_id:
-        description: 'FlavorFlow client id to publish'
+        description: 'FlavorFlow client id to build and publish'
         required: false
         default: ''
       client_name:
@@ -67,9 +57,20 @@ on:
         default: false
 
 jobs:
+  # The same build every other path uses, called rather than duplicated.
+  build:
+    name: Build
+    if: inputs.client_id != ''
+    uses: ./.github/workflows/build-white-label.yml
+    with:
+      client_id: ${{ inputs.client_id }}
+      client_name: ${{ inputs.client_name }}
+    secrets: inherit
+
   # No browser, no self-hosted runner, no signed-in session.
   internal-release:
     name: Internal release for '${{ inputs.client_name }}' (fastlane)
+    needs: build
     if: inputs.client_id != ''
     runs-on: ubuntu-latest
     steps:
@@ -142,7 +143,6 @@ jobs:
           project-id: ${{ inputs.project_id }}
           client-id: ${{ inputs.client_id }}
           app-name: ${{ inputs.app_name }}
-          developer-id: ${{ vars.PLAY_DEVELOPER_ID }}
           app-id: ${{ inputs.play_app_id }}
           # No `form`: this run exists only to promote.
           form: ''
