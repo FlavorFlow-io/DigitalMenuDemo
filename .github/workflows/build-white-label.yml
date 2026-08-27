@@ -174,9 +174,16 @@ jobs:
       - name: Generate the store icon from the client logo
         run: |
           set -euo pipefail
-          logo=$(find assets/logos -type f \( -name '*.png' -o -name '*.jpg' -o -name '*.jpeg' -o -name '*.webp' \) 2>/dev/null | head -1)
+          # `|| true`, and the directory test, because pipefail makes a failing
+          # find abort the assignment itself — so the "no logo" branch below was
+          # unreachable and a client without a logo failed the build instead of
+          # warning. Which is what happened to two of them.
+          logo=""
+          if [ -d assets/logos ]; then
+            logo=$(find assets/logos -type f \( -name '*.png' -o -name '*.jpg' -o -name '*.jpeg' -o -name '*.webp' \) 2>/dev/null | head -1 || true)
+          fi
           if [ -z "$logo" ]; then
-            echo "::warning::No client logo found — the listing will have no icon."
+            echo "::warning::No logo for this client — its store listing will have no icon, which Play requires before a listing can be published."
             exit 0
           fi
           # java rather than ImageMagick: `convert` is not on the runner image
