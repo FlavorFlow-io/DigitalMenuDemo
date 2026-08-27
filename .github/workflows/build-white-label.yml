@@ -137,6 +137,32 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle/libs.versions.toml') }}
           restore-keys: ${{ runner.os }}-gradle
 
+      # apply-flavor-action rewrites the app's package, but it only knows about
+      # the main source set — so the screenshot sources kept declaring and
+      # importing io.flavorflow.demo and stopped compiling for every client
+      # whose package differs. Follow the namespace it actually left behind.
+      - name: Point the screenshot sources at this client's package
+        run: |
+          set -euo pipefail
+          ns=$(grep -oE 'namespace = "[^"]+"' app/build.gradle.kts | head -1 | cut -d'"' -f2)
+          old=io.flavorflow.demo
+          src=app/src/screenshots/kotlin
+          if [ -z "$ns" ] || [ "$ns" = "$old" ]; then
+            echo "Package unchanged ($ns) — screenshot sources left alone."
+            exit 0
+          fi
+          dest="$src/$(echo "$ns" | tr . /)"
+          mkdir -p "$dest"
+          find "$src/$(echo "$old" | tr . /)" -name '*.kt' -exec mv {} "$dest/" \;
+          # Rewrite package, imports and anything else naming the old package,
+          # including the R class the namespace change moved. perl rather than
+          # sed -i, which differs between GNU and BSD and so cannot be checked
+          # anywhere but the runner; \Q quotes the dots, \b keeps a longer
+          # package that merely starts with this one intact.
+          find "$dest" -name '*.kt' -exec perl -pi -e "s/\Q$old\E\b/$ns/g" {} +
+          rm -rf "${src:?}/io"
+          echo "Screenshot sources moved to $ns"
+
       # After apply-flavor-action, so the images carry this client's branding:
       # they are rendered from the app's own composables under its own theme.
       - name: Generate store screenshots
@@ -153,13 +179,9 @@ jobs:
             echo "::warning::No client logo found — the listing will have no icon."
             exit 0
           fi
-          out=app/screenshots/en-US/images
-          mkdir -p "$out"
-          # Pad rather than crop: a non-square logo keeps its proportions and
-          # Play gets the exact square it requires.
-          convert "$logo" -resize 512x512 -background none -gravity center \
-            -extent 512x512 "$out/icon.png"
-          identify -format '  icon: %wx%h %m\n' "$out/icon.png"
+          # java rather than ImageMagick: `convert` is not on the runner image
+          # any more, and this exited 127 on every leg for two days.
+          java tools/MakeIcon.java "$logo" app/screenshots/en-US/images/icon.png
 
       - name: Upload store screenshots
         uses: actions/upload-artifact@v7

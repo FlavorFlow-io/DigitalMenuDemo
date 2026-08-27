@@ -42,12 +42,6 @@ on:
         description: 'Play app id, used only when promoting through the console'
         required: false
         default: ''
-      countries:
-        description: >-
-          Countries for the production release, as Play spells them, comma
-          separated. Blank means every country.
-        required: false
-        default: ''
       publish_to_production:
         description: >-
           Promote this release to production. Off by default: it is public and
@@ -147,7 +141,9 @@ jobs:
           # No `form`: this run exists only to promote.
           form: ''
           publish-to-production: true
-          countries: ${{ inputs.countries }}
+          # `countries` is not passed: production_countries_form reads it from
+          # the project's saved answers, so the set lives in one place and a
+          # client can override it.
 
       - name: Report
         run: |

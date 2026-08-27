@@ -63,12 +63,14 @@ on:
         description: 'Full event as JSON'
         required: false
         default: ''
-      force_create:
+      publish_to_production:
         description: >-
-          Create a new Play app even if one is remembered. Needed when the
-          existing app has the wrong package name, which Play will not change.
+          Also promote this first release to production. Off by default: it is
+          public and it is not reversible. The countries it ships to come from
+          the project's saved answers, not from here.
+        type: boolean
         required: false
-        default: 'false'
+        default: false
       play_app_id:
         description: >-
           Existing Play app id. Set it to resume against an app a previous run
@@ -131,7 +133,6 @@ jobs:
           # project has no answers for simply does not run.
           form: all
           app-id: ${{ inputs.play_app_id }}
-          force-create: ${{ inputs.force_create }}
 
       - name: Publish to internal testing
         uses: FlavorFlow-io/create-play-app-action@main
@@ -142,6 +143,11 @@ jobs:
           app-name: ${{ inputs.app_name }}
           form: internal_testing_form
           app-id: ${{ steps.play.outputs.app-id || inputs.play_app_id }}
+          # Promotion belongs to the action, which owns the console session and
+          # runs it in the same browser as the release it promotes. `countries`
+          # is deliberately not passed: the form reads it from the project's
+          # saved answers, so it is set once in the app rather than per run.
+          publish-to-production: ${{ inputs.publish_to_production }}
           # Only the bundle path, which is a fact about this run. Everything
           # else the form needs — the tester list name and emails included —
           # comes from the project's saved answers, so it is edited in one
