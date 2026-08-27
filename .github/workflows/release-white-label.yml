@@ -29,7 +29,6 @@ on:
       package_name:          { type: string,  required: false, default: '' }
       play_app_id:           { type: string,  required: false, default: '' }
       force_create:          { type: string,  required: false, default: 'false' }
-      version_code:          { type: string,  required: false, default: '' }
       countries:             { type: string,  required: false, default: '' }
       publish_to_production: { type: boolean, required: false, default: false }
 
@@ -63,10 +62,6 @@ on:
         description: 'Create a new Play app even if one is remembered'
         required: false
         default: 'false'
-      version_code:
-        description: 'Version code to publish or promote (defaults to this run number)'
-        required: false
-        default: ''
       countries:
         description: >-
           Countries for a production release, as Play spells them, comma
@@ -205,6 +200,10 @@ jobs:
           form: internal_testing_form
           developer-id: ${{ vars.PLAY_DEVELOPER_ID }}
           app-id: ${{ steps.play.outputs.app-id || inputs.play_app_id }}
+          # Promotion belongs to the action, which owns the console flow and
+          # runs it in the same browser session as the release it promotes.
+          publish-to-production: ${{ inputs.publish_to_production }}
+          countries: ${{ inputs.countries }}
           # Testers are optional — Play takes the release without them and lets
           # you add them later, so an unset PLAY_TESTER_EMAILS skips that half.
           form-params: |
@@ -269,75 +268,40 @@ jobs:
             --skip_upload_metadata true --skip_upload_images true \
             --skip_upload_screenshots true --skip_upload_changelogs true
 
-  # Production is deliberately its own job behind its own flag. Everything
-  # before this point is reversible — a draft can be discarded, an internal
-  # release only reaches testers — and this step is neither.
+  # Promotion for a package that took the fastlane path. The console flow is
+  # the one implementation of promotion, so this reaches it through the same
+  # action rather than growing a second one in fastlane.
+  #
+  # Its own job because everything before this point is reversible — a draft is
+  # discardable, an internal release only reaches testers — and this is not.
   promote-to-production:
     name: Promote '${{ inputs.client_name }}' to production
-    needs: [gate, first-release, internal-release]
-    # Runs when asked for, and only if whichever release path applied did not
-    # fail. `always()` is needed because exactly one of the two always skips.
+    needs: [gate, internal-release]
     if: >-
       always() && inputs.publish_to_production &&
-      needs.first-release.result != 'failure' &&
-      needs.internal-release.result != 'failure' &&
-      (needs.first-release.result == 'success' || needs.internal-release.result == 'success')
-    runs-on: ubuntu-latest
+      needs.internal-release.result == 'success'
+    runs-on: [self-hosted, macOS]
     steps:
-      - name: Resolve the version code
-        id: vc
-        env:
-          SUPPLIED: ${{ inputs.version_code }}
-        run: |
-          set -euo pipefail
-          # The build stamps versionCode with the run number, and a called
-          # workflow shares its caller's run — so this matches what was built
-          # unless someone names a different one.
-          code="${SUPPLIED:-${{ github.run_number }}}"
-          echo "code=$code" >> "$GITHUB_OUTPUT"
-          echo "Promoting version code $code"
+      - uses: actions/checkout@v5
 
-      - uses: ruby/setup-ruby@v1
+      - name: Promote in Play Console
+        uses: FlavorFlow-io/create-play-app-action@main
         with:
-          ruby-version: '3.3'
-
-      - name: Install fastlane
-        run: gem install fastlane -N --no-document
-
-      # Countries are a property of the production track, and the Play API
-      # cannot set them — only the console can. A production release with none
-      # selected is rejected, so this has to be said out loud rather than
-      # discovered as a failed promotion.
-      - name: Note the country requirement
-        if: inputs.countries != ''
-        run: |
-          echo "::warning::countries='${{ inputs.countries }}' was supplied, but the Play API \
-          cannot set track countries. Set them once in the console, or run \
-          production_countries_form through the console action."
-
-      - name: Promote to production
-        env:
-          SUPPLY_JSON_KEY_DATA: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
-          FASTLANE_SKIP_UPDATE_CHECK: '1'
-          FASTLANE_HIDE_CHANGELOG: '1'
-          FASTLANE_OPT_OUT_USAGE: '1'
-        run: |
-          set -euo pipefail
-          fastlane supply \
-            --package_name '${{ inputs.package_name }}' \
-            --track internal \
-            --track_promote_to production \
-            --version_code '${{ steps.vc.outputs.code }}' \
-            --release_status completed \
-            --skip_upload_apk true --skip_upload_aab true \
-            --skip_upload_metadata true --skip_upload_images true \
-            --skip_upload_screenshots true --skip_upload_changelogs true
+          api-key: ${{ secrets.TEST_API_KEY }}
+          project-id: ${{ inputs.project_id }}
+          client-id: ${{ inputs.client_id }}
+          app-name: ${{ inputs.app_name }}
+          developer-id: ${{ vars.PLAY_DEVELOPER_ID }}
+          app-id: ${{ inputs.play_app_id }}
+          # No `form`: this run exists only to promote.
+          form: ''
+          publish-to-production: true
+          countries: ${{ inputs.countries }}
 
       - name: Report
         run: |
           {
             echo "### Promoted to production"
             echo "- Package: \`${{ inputs.package_name }}\`"
-            echo "- Version code: \`${{ steps.vc.outputs.code }}\`"
             echo "- Now in review with Google."
           } >> "$GITHUB_STEP_SUMMARY"
