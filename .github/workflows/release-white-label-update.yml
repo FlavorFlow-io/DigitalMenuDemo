@@ -1,0 +1,158 @@
+# Ships a new build of a client whose app already exists in Google Play.
+#
+# Everything here goes through the Play Developer API, so it runs on a hosted
+# runner with no browser and no signed-in session. That is only possible once
+# the package has had a first release made through the console — Google refuses
+# the first artifact of a new app over the API. create-play-app.yml is what
+# gets a client to that point; this is every release after it.
+#
+# Setup (Settings → Secrets and variables → Actions):
+#   Secret   TEST_API_KEY               = FlavorFlow project API key
+#   Secret   PLAY_SERVICE_ACCOUNT_JSON  = Play service-account key, whole JSON
+#   Variable PLAY_DEVELOPER_ID          = Play developer id
+name: Release White-Label Update
+
+on:
+  # Called by build-white-label.yml when the gate says the API will take this
+  # package. workflow_call inputs are not subject to the ten-input dispatch cap.
+  workflow_call:
+    inputs:
+      project_id:            { type: string,  required: false, default: '' }
+      client_id:             { type: string,  required: false, default: '' }
+      client_name:           { type: string,  required: false, default: '' }
+      app_name:              { type: string,  required: false, default: '' }
+      package_name:          { type: string,  required: false, default: '' }
+      play_app_id:           { type: string,  required: false, default: '' }
+      countries:             { type: string,  required: false, default: '' }
+      publish_to_production: { type: boolean, required: false, default: false }
+
+  workflow_dispatch:
+    inputs:
+      project_id:
+        description: 'FlavorFlow project id'
+        required: false
+        default: ''
+      client_id:
+        description: 'FlavorFlow client id to publish'
+        required: false
+        default: ''
+      client_name:
+        description: 'Client name (labels the run)'
+        required: false
+        default: ''
+      app_name:
+        description: 'App name'
+        required: false
+        default: ''
+      package_name:
+        description: 'Package name — fastlane uploads against this'
+        required: false
+        default: ''
+      play_app_id:
+        description: 'Play app id, used only when promoting through the console'
+        required: false
+        default: ''
+      countries:
+        description: >-
+          Countries for the production release, as Play spells them, comma
+          separated. Blank means every country.
+        required: false
+        default: ''
+      publish_to_production:
+        description: >-
+          Promote this release to production. Off by default: it is public and
+          it is not reversible.
+        type: boolean
+        required: false
+        default: false
+
+jobs:
+  # No browser, no self-hosted runner, no signed-in session.
+  internal-release:
+    name: Internal release for '${{ inputs.client_name }}' (fastlane)
+    if: inputs.client_id != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download the signed bundle
+        uses: actions/download-artifact@v7
+        with:
+          pattern: bundle-*
+          merge-multiple: true
+          path: bundle
+
+      - name: Locate the bundle
+        id: aab
+        run: |
+          set -euo pipefail
+          aab=$(find bundle -name '*.aab' | head -1)
+          [ -n "$aab" ] || { echo "::error::No .aab to upload."; exit 1; }
+          echo "path=$(cd "$(dirname "$aab")" && pwd)/$(basename "$aab")" >> "$GITHUB_OUTPUT"
+          ls -lh "$aab"
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+
+      - name: Install fastlane
+        run: gem install fastlane -N --no-document
+
+      - name: Upload to internal testing
+        env:
+          # json_key_data takes the key as a value, so it never lands on disk.
+          SUPPLY_JSON_KEY_DATA: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          FASTLANE_SKIP_UPDATE_CHECK: '1'
+          FASTLANE_HIDE_CHANGELOG: '1'
+          FASTLANE_OPT_OUT_USAGE: '1'
+        run: |
+          set -euo pipefail
+          fastlane supply \
+            --package_name '${{ inputs.package_name }}' \
+            --aab '${{ steps.aab.outputs.path }}' \
+            --track internal \
+            --release_status completed \
+            --skip_upload_metadata true --skip_upload_images true \
+            --skip_upload_screenshots true --skip_upload_changelogs true
+
+      - name: Report
+        run: |
+          {
+            echo "### Internal release (fastlane)"
+            echo "- Package: \`${{ inputs.package_name }}\`"
+            echo "- Bundle: \`$(basename '${{ steps.aab.outputs.path }}')\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # Its own job because everything before this point is reversible — a draft is
+  # discardable, an internal release only reaches testers — and this is not.
+  #
+  # Promotion goes through the console action rather than fastlane so there is
+  # one implementation of it: the same one create-play-app.yml uses, and the
+  # only one that can set the countries a production release cannot go without.
+  promote-to-production:
+    name: Promote '${{ inputs.client_name }}' to production
+    needs: internal-release
+    if: inputs.publish_to_production && needs.internal-release.result == 'success'
+    runs-on: [self-hosted, macOS]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Promote in Play Console
+        uses: FlavorFlow-io/create-play-app-action@main
+        with:
+          api-key: ${{ secrets.TEST_API_KEY }}
+          project-id: ${{ inputs.project_id }}
+          client-id: ${{ inputs.client_id }}
+          app-name: ${{ inputs.app_name }}
+          developer-id: ${{ vars.PLAY_DEVELOPER_ID }}
+          app-id: ${{ inputs.play_app_id }}
+          # No `form`: this run exists only to promote.
+          form: ''
+          publish-to-production: true
+          countries: ${{ inputs.countries }}
+
+      - name: Report
+        run: |
+          {
+            echo "### Promoted to production"
+            echo "- Package: \`${{ inputs.package_name }}\`"
+            echo "- Now in review with Google."
+          } >> "$GITHUB_STEP_SUMMARY"
