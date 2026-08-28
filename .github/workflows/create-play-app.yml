@@ -109,7 +109,18 @@ jobs:
           merge-multiple: true
           path: bundle
 
-      - name: Locate the bundle
+      # The build renders these from the client's own UI, but nothing passed
+      # them to the listing form — so the text filled and the icon, feature
+      # graphic and screenshots stayed empty, which Play reports as "Upload an
+      # icon" and refuses to publish a listing without.
+      - name: Download the listing assets
+        uses: actions/download-artifact@v7
+        with:
+          pattern: listing-*
+          merge-multiple: true
+          path: listing
+
+      - name: Locate the bundle and the listing assets
         id: aab
         run: |
           set -euo pipefail
@@ -120,6 +131,19 @@ jobs:
           fi
           echo "path=$(cd "$(dirname "$aab")" && pwd)/$(basename "$aab")" >> "$GITHUB_OUTPUT"
           ls -lh "$aab"
+
+          # Absolute paths: the runner reads these from disk while driving the
+          # console, from whatever directory it happens to be in.
+          root=$(cd listing 2>/dev/null && pwd || true)
+          abs() { if [ -n "$root" ] && [ -f "$root/$1" ]; then echo "$root/$1"; fi; }
+          echo "icon=$(abs en-US/images/icon.png)" >> "$GITHUB_OUTPUT"
+          echo "feature=$(abs en-US/images/feature_graphic.png)" >> "$GITHUB_OUTPUT"
+          shots=$(find "${root:-/nonexistent}" -path '*phoneScreenshots*' -name '*.png' 2>/dev/null | sort | paste -sd, - || true)
+          echo "shots=$shots" >> "$GITHUB_OUTPUT"
+          # Said out loud: Play will not publish a listing without these, and
+          # the form reports it as a page error rather than a failed step.
+          [ -n "$(abs en-US/images/icon.png)" ] || echo "::warning::No icon asset — the store listing cannot be completed."
+          [ -n "$shots" ] || echo "::warning::No phone screenshots — Play requires at least two."
 
       - name: Create the app and fill its forms
         id: play
@@ -132,6 +156,12 @@ jobs:
           # "all" is filtered by the project's saved answers, so a form the
           # project has no answers for simply does not run.
           form: all
+          # The listing assets are facts about this build, so they travel as
+          # params rather than living in the project's saved answers.
+          form-params: |
+            app_icon=${{ steps.aab.outputs.icon }}
+            feature_graphic=${{ steps.aab.outputs.feature }}
+            phone_screenshots=${{ steps.aab.outputs.shots }}
           app-id: ${{ inputs.play_app_id }}
 
       - name: Publish to internal testing
