@@ -162,6 +162,7 @@ jobs:
             app_icon=${{ steps.aab.outputs.icon }}
             feature_graphic=${{ steps.aab.outputs.feature }}
             phone_screenshots=${{ steps.aab.outputs.shots }}
+            csv_file=${{ github.workspace }}/play/data-safety.csv
           app-id: ${{ inputs.play_app_id }}
 
       - name: Publish to internal testing
