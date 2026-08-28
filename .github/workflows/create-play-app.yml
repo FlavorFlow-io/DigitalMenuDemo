@@ -185,6 +185,30 @@ jobs:
           form-params: |
             aab=${{ steps.aab.outputs.path }}
 
+      # Without this the id lives only in this runner's state file and in this
+      # log, so FlavorFlow cannot say which clients have an app, and a wiped or
+      # replaced runner loses it. The runner can still re-derive it from the
+      # package name, but that means driving a browser to answer a question the
+      # database should already know.
+      - name: Record the Play app id against the client
+        if: steps.play.outputs.app-id != ''
+        env:
+          API_KEY: ${{ secrets.TEST_API_KEY }}
+          APP_ID: ${{ steps.play.outputs.app-id }}
+        run: |
+          set -euo pipefail
+          code=$(curl -sS -o /tmp/rec.json -w '%{http_code}' -X PUT \
+            -H "Authorization: Bearer $API_KEY" -H 'Content-Type: application/json' \
+            -d "$(jq -n --arg id "$APP_ID" '{play_app_id: $id}')" \
+            "https://api.flavorflow.io/v1/projects/${{ inputs.project_id }}/clients/${{ inputs.client_id }}")
+          if [ "$code" = "200" ] || [ "$code" = "201" ]; then
+            echo "Recorded Play app id $APP_ID against the client."
+          else
+            # A warning, not a failure: the app exists and was released either
+            # way, and losing the bookkeeping should not fail the publish.
+            echo "::warning::Could not record the Play app id (HTTP $code): $(cat /tmp/rec.json)"
+          fi
+
       - name: Report
         run: |
           {
