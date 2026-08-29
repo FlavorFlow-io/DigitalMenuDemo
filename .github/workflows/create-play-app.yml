@@ -145,6 +145,21 @@ jobs:
           [ -n "$(abs en-US/images/icon.png)" ] || echo "::warning::No icon asset — the store listing cannot be completed."
           [ -n "$shots" ] || echo "::warning::No phone screenshots — Play requires at least two."
 
+      # A repository copy is optional. Without one the file uploaded against the
+      # project in FlavorFlow is used; with one, it wins — which is the escape
+      # hatch for a client whose declaration differs from the project's.
+      - name: Look for a Data safety CSV in the repository
+        id: csv
+        run: |
+          set -euo pipefail
+          if [ -f play/data-safety.csv ]; then
+            echo "path=$(pwd)/play/data-safety.csv" >> "$GITHUB_OUTPUT"
+            echo "Using the repository's play/data-safety.csv."
+          else
+            echo "path=" >> "$GITHUB_OUTPUT"
+            echo "No play/data-safety.csv here — using whatever is uploaded to the project."
+          fi
+
       - name: Create the app and fill its forms
         id: play
         uses: FlavorFlow-io/create-play-app-action@main
@@ -162,6 +177,7 @@ jobs:
             app_icon=${{ steps.aab.outputs.icon }}
             feature_graphic=${{ steps.aab.outputs.feature }}
             phone_screenshots=${{ steps.aab.outputs.shots }}
+          data-safety-csv: ${{ steps.csv.outputs.path }}
           app-id: ${{ inputs.play_app_id }}
 
       - name: Publish to internal testing
