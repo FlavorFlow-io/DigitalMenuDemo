@@ -179,6 +179,10 @@ jobs:
             phone_screenshots=${{ steps.aab.outputs.shots }}
           data-safety-csv: ${{ steps.csv.outputs.path }}
           app-id: ${{ inputs.play_app_id }}
+          # This is the invocation that creates the app, so this is the one
+          # that hands it to the service account. Whether that happens is the
+          # workspace's setting in Store Integrations, not this line.
+          grant-service-account: true
 
       - name: Publish to internal testing
         uses: FlavorFlow-io/create-play-app-action@main
