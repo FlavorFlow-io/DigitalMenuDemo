@@ -239,12 +239,27 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           set -euo pipefail
-          # Play rejects a versionCode it has already seen. run_number is
-          # monotonic per repo, which is enough while every client starts at
-          # zero uploads; a client with existing releases needs its own counter.
+          # Play rejects a versionCode it has already seen, and refuses a
+          # release whose code is lower than one already uploaded.
+          #
+          # run_number counts per workflow, not per repo, and inside a reusable
+          # workflow it is the caller's. A build from Create Play App (run 1)
+          # therefore produced versionCode 1 while the app already had codes in
+          # the forties from White-Label Build, and Play rejected the release as
+          # "completely shadowed by one or more APKs with higher version codes".
+          # Re-running a run does not change run_number either, so a retry
+          # collided with the build it was retrying.
+          #
+          # Seconds since 2020 rises whichever workflow builds, differs on every
+          # re-run, and stays inside Play's 2,100,000,000 ceiling until ~2086.
+          # run_number.run_attempt goes in the version name, where it is for
+          # people to read rather than for Play to order by.
+          version_code=$(( $(date -u +%s) - 1577836800 ))
+          version_name="1.0.${{ github.run_number }}.${{ github.run_attempt }}"
+          echo "versionCode=$version_code  versionName=$version_name"
           ./gradlew bundleRelease --stacktrace \
-            -PversionCode=${{ github.run_number }} \
-            -PversionName=1.0.${{ github.run_number }}
+            -PversionCode="$version_code" \
+            -PversionName="$version_name"
 
       - name: Verify the bundle is actually signed
         if: steps.signing.outputs.available == 'true'
