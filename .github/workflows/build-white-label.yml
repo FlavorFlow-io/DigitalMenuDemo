@@ -250,11 +250,20 @@ jobs:
           # Re-running a run does not change run_number either, so a retry
           # collided with the build it was retrying.
           #
-          # Seconds since 2020 rises whichever workflow builds, differs on every
-          # re-run, and stays inside Play's 2,100,000,000 ceiling until ~2086.
-          # run_number.run_attempt goes in the version name, where it is for
-          # people to read rather than for Play to order by.
-          version_code=$(( $(date -u +%s) - 1577836800 ))
+          # Minutes since 2026, times ten, plus the attempt: seven digits rather
+          # than nine, and still only ever upwards.
+          #
+          # Fewer digits than this cannot hold. Hours since 2026 would be four
+          # digits today and pass 9999 within a year, wrapping to a lower number
+          # — and Play never accepts a code below one it has seen, so publishing
+          # would stop for good. Days would be four digits but identical for two
+          # builds on the same day, which is the collision this is here to avoid.
+          #
+          # The attempt in the last digit is what makes a re-run differ from the
+          # run it retries even when both start inside the same minute.
+          attempt=${{ github.run_attempt }}
+          [ "$attempt" -gt 9 ] && attempt=9
+          version_code=$(( ($(date -u +%s) - 1767225600) / 60 * 10 + attempt ))
           version_name="1.0.${{ github.run_number }}.${{ github.run_attempt }}"
           echo "versionCode=$version_code  versionName=$version_name"
           ./gradlew bundleRelease --stacktrace \
