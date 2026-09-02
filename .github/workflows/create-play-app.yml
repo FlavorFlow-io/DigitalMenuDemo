@@ -179,8 +179,11 @@ jobs:
             # They are machine-specific: on the box this was written, index 1
             # is a webcam and the screen is 3, so a hardcoded "1" would have
             # filmed the camera for forty minutes.
+            # `|| true` because listing devices is not a success to ffmpeg:
+            # it has no real input and exits 251, which under `set -e` failed
+            # the step and took the whole job with it.
             screen=$(ffmpeg -f avfoundation -list_devices true -i "" 2>&1 \
-              | awk -F'[][]' '/Capture screen/ {print $4; exit}')
+              | awk -F'[][]' '/Capture screen/ {print $4; exit}' || true)
             if [ -z "${screen:-}" ]; then
               echo "::warning::No screen capture device found; not recording."
               exit 0
