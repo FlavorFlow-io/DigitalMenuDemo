@@ -160,7 +160,7 @@ jobs:
             echo "No play/data-safety.csv here — using whatever is uploaded to the project."
           fi
 
-      - name: Create the app and fill its forms
+      - name: Create the app and fill its forms, and release it
         id: play
         uses: FlavorFlow-io/create-play-app-action@main
         with:
@@ -169,41 +169,27 @@ jobs:
           client-id: ${{ inputs.client_id }}
           app-name: ${{ inputs.app_name }}
           # "all" is filtered by the project's saved answers, so a form the
-          # project has no answers for simply does not run.
+          # project has no answers for simply does not run. It includes the
+          # internal testing release, which is why the bundle is passed here:
+          # one browser session does the whole job, and a missing bundle fails
+          # the run before it opens one rather than half-way through.
           form: all
-          # The listing assets are facts about this build, so they travel as
-          # params rather than living in the project's saved answers.
+          # Facts about this build rather than answers about the client, so
+          # they travel as params instead of living in the saved answers.
           form-params: |
+            aab=${{ steps.aab.outputs.path }}
             app_icon=${{ steps.aab.outputs.icon }}
             feature_graphic=${{ steps.aab.outputs.feature }}
             phone_screenshots=${{ steps.aab.outputs.shots }}
           data-safety-csv: ${{ steps.csv.outputs.path }}
           app-id: ${{ inputs.play_app_id }}
-          # This is the invocation that creates the app, so this is the one
-          # that hands it to the service account. Whether that happens is the
-          # workspace's setting in Store Integrations, not this line.
+          # Whether this happens is the workspace's setting in Store
+          # Integrations, not this line.
           grant-service-account: true
-
-      - name: Publish to internal testing
-        uses: FlavorFlow-io/create-play-app-action@main
-        with:
-          api-key: ${{ secrets.TEST_API_KEY }}
-          project-id: ${{ inputs.project_id }}
-          client-id: ${{ inputs.client_id }}
-          app-name: ${{ inputs.app_name }}
-          form: internal_testing_form
-          app-id: ${{ steps.play.outputs.app-id || inputs.play_app_id }}
-          # Promotion belongs to the action, which owns the console session and
-          # runs it in the same browser as the release it promotes. `countries`
-          # is deliberately not passed: the form reads it from the project's
-          # saved answers, so it is set once in the app rather than per run.
+          # Promotion runs in the same session as the release it promotes.
+          # `countries` is deliberately not passed: the form reads it from the
+          # project's saved answers, so it is set once in the app.
           publish-to-production: ${{ inputs.publish_to_production }}
-          # Only the bundle path, which is a fact about this run. Everything
-          # else the form needs — the tester list name and emails included —
-          # comes from the project's saved answers, so it is edited in one
-          # place and a client can override it.
-          form-params: |
-            aab=${{ steps.aab.outputs.path }}
 
       # Without this the id lives only in this runner's state file and in this
       # log, so FlavorFlow cannot say which clients have an app, and a wiped or
