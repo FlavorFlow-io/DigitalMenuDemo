@@ -160,6 +160,57 @@ jobs:
             echo "No play/data-safety.csv here — using whatever is uploaded to the project."
           fi
 
+      # Records the whole console session. Useful twice over: to see what the
+      # automation actually did when a form misbehaves, and because a run of
+      # this is worth showing people.
+      #
+      # Toggled by a repository variable rather than a workflow input — the
+      # dispatch inputs are at GitHub's cap of ten. Set RECORD_SCREEN=false to
+      # turn it off.
+      - name: Start screen recording
+        id: rec
+        if: vars.RECORD_SCREEN != 'false'
+        run: |
+          set -euo pipefail
+          log="$RUNNER_TEMP/recorder.log"
+          if command -v ffmpeg >/dev/null 2>&1; then
+            out="$RUNNER_TEMP/console-run-${{ github.run_id }}.mp4"
+            # Ask which device is the screen rather than assuming an index.
+            # They are machine-specific: on the box this was written, index 1
+            # is a webcam and the screen is 3, so a hardcoded "1" would have
+            # filmed the camera for forty minutes.
+            screen=$(ffmpeg -f avfoundation -list_devices true -i "" 2>&1 \
+              | awk -F'[][]' '/Capture screen/ {print $4; exit}')
+            if [ -z "${screen:-}" ]; then
+              echo "::warning::No screen capture device found; not recording."
+              exit 0
+            fi
+            echo "Recording screen device $screen."
+            # Four frames a second, scaled to 1280 wide: a forty-minute run is
+            # tens of megabytes instead of gigabytes, still readable for
+            # diagnosis and fine to cut a clip from. ":none" takes no audio.
+            ffmpeg -nostdin -y -f avfoundation -framerate 4 -i "${screen}:none" \
+              -vf "scale=1280:-2" -c:v libx264 -preset veryfast -pix_fmt yuv420p \
+              "$out" > "$log" 2>&1 &
+          else
+            # Always present on macOS, but it records at full resolution and
+            # the file is much larger.
+            out="$RUNNER_TEMP/console-run-${{ github.run_id }}.mov"
+            echo "::notice::ffmpeg not found; falling back to screencapture (larger file)."
+            screencapture -v "$out" > "$log" 2>&1 &
+          fi
+          pid=$!
+          echo "$pid" > "$RUNNER_TEMP/recorder.pid"
+          echo "path=$out" >> "$GITHUB_OUTPUT"
+          sleep 4
+          if ! kill -0 "$pid" 2>/dev/null; then
+            # Almost always the permission: the runner's process needs Screen
+            # Recording in System Settings → Privacy & Security, and macOS
+            # denies it silently to a background service.
+            echo "::warning::The recorder stopped immediately, so this run will not be recorded."
+            cat "$log" || true
+          fi
+
       - name: Create the app and fill its forms, and release it
         id: play
         uses: FlavorFlow-io/create-play-app-action@main
@@ -190,6 +241,37 @@ jobs:
           # `countries` is deliberately not passed: the form reads it from the
           # project's saved answers, so it is set once in the app.
           publish-to-production: ${{ inputs.publish_to_production }}
+
+
+      - name: Stop screen recording
+        id: recstop
+        if: always() && vars.RECORD_SCREEN != 'false'
+        run: |
+          set -uo pipefail
+          pid=$(cat "$RUNNER_TEMP/recorder.pid" 2>/dev/null || true)
+          if [ -n "$pid" ]; then
+            # SIGINT, not SIGKILL: the encoder has to write the file's trailer
+            # or the recording will not play back at all.
+            kill -INT "$pid" 2>/dev/null || true
+            for _ in $(seq 1 60); do kill -0 "$pid" 2>/dev/null || break; sleep 1; done
+            kill -9 "$pid" 2>/dev/null || true
+          fi
+          out="${{ steps.rec.outputs.path }}"
+          if [ -n "${out:-}" ] && [ -s "$out" ]; then
+            echo "path=$out" >> "$GITHUB_OUTPUT"
+            echo "Recorded $(du -h "$out" | cut -f1) to $(basename "$out")."
+          else
+            echo "::warning::No recording was produced."
+          fi
+
+      - name: Upload the recording
+        if: always() && steps.recstop.outputs.path != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: console-recording-${{ github.run_id }}
+          path: ${{ steps.recstop.outputs.path }}
+          retention-days: 14
+          if-no-files-found: warn
 
       # Without this the id lives only in this runner's state file and in this
       # log, so FlavorFlow cannot say which clients have an app, and a wiped or
