@@ -18,4 +18,15 @@
 
     <string name="screenshot_feature_title">Your menu, ready to order</string>
     <string name="screenshot_feature_desc">Browse, order and pay — from the table</string>
+
+    <!-- The sample menu the screenshots render, so it reads in the listing's language. -->
+    <string name="sample_category_starters">Starters</string>
+    <string name="sample_category_mains">Mains</string>
+    <string name="sample_garlic_bread_desc">Grilled garlic bread, house butter</string>
+    <string name="sample_coxinha_desc">Shredded chicken, crisp crumb</string>
+    <string name="sample_feijoada_desc">Black beans, pork, orange, farofa</string>
+    <string name="sample_moqueca_desc">Fish stew, coconut milk, dendê</string>
+    <string name="sample_payment_pix_desc">Instant transfer</string>
+    <string name="sample_payment_card">Card</string>
+    <string name="sample_payment_card_desc">Visa ending 4242</string>
 </resources>

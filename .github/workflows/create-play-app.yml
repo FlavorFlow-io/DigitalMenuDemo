@@ -129,21 +129,53 @@ jobs:
             echo "::error::No .aab was produced — the build skips the bundle when signing secrets are missing."
             exit 1
           fi
-          echo "path=$(cd "$(dirname "$aab")" && pwd)/$(basename "$aab")" >> "$GITHUB_OUTPUT"
           ls -lh "$aab"
 
           # Absolute paths: the runner reads these from disk while driving the
           # console, from whatever directory it happens to be in.
           root=$(cd listing 2>/dev/null && pwd || true)
-          abs() { if [ -n "$root" ] && [ -f "$root/$1" ]; then echo "$root/$1"; fi; }
-          echo "icon=$(abs en-US/images/icon.png)" >> "$GITHUB_OUTPUT"
-          echo "feature=$(abs en-US/images/feature_graphic.png)" >> "$GITHUB_OUTPUT"
-          shots=$(find "${root:-/nonexistent}" -path '*phoneScreenshots*' -name '*.png' 2>/dev/null | sort | paste -sd, - || true)
-          echo "shots=$shots" >> "$GITHUB_OUTPUT"
-          # Said out loud: Play will not publish a listing without these, and
-          # the form reports it as a page error rather than a failed step.
-          [ -n "$(abs en-US/images/icon.png)" ] || echo "::warning::No icon asset — the store listing cannot be completed."
-          [ -n "$shots" ] || echo "::warning::No phone screenshots — Play requires at least two."
+          # The build renders one set of images per listing language. The params
+          # follow that: a bare key answers the default listing, `key@pt-BR`
+          # answers that translation. Collected per directory, because one find
+          # across all of them put the Portuguese screenshots on the English
+          # listing — six images for a slot that takes eight, and no way to tell
+          # from the run that it had happened.
+          default_locale=en-US
+          params="aab=$(cd "$(dirname "$aab")" && pwd)/$(basename "$aab")"$'\n'
+          add() { params="${params}$1=$2"$'\n'; }
+
+          # The icon is the app's, not a listing's: Play takes one for all
+          # languages, so it is only read from the default.
+          icon="${root:-/nonexistent}/$default_locale/images/icon.png"
+          if [ -f "$icon" ]; then
+            add app_icon "$icon"
+          else
+            echo "::warning::No icon asset — the store listing cannot be completed."
+          fi
+
+          for dir in "${root:-/nonexistent}"/*/; do
+            [ -d "$dir" ] || continue
+            loc=$(basename "$dir")
+            suffix=""
+            [ "$loc" = "$default_locale" ] || suffix="@$loc"
+            fg="$dir/images/feature_graphic.png"
+            [ -f "$fg" ] && add "feature_graphic$suffix" "$fg"
+            shots=$(find "$dir" -path '*phoneScreenshots*' -name '*.png' 2>/dev/null | sort | paste -sd, - || true)
+            if [ -n "$shots" ]; then
+              add "phone_screenshots$suffix" "$shots"
+            elif [ "$loc" = "$default_locale" ]; then
+              echo "::warning::No phone screenshots — Play requires at least two."
+            fi
+          done
+
+          # Which languages are actually filled is the project's answer, not this
+          # build's: assets for a language nobody asked for simply go unused.
+          {
+            echo "params<<FF_EOF"
+            printf '%s' "$params"
+            echo "FF_EOF"
+          } >> "$GITHUB_OUTPUT"
+          printf 'Listing assets:\n%s' "$params"
 
       # A repository copy is optional. Without one the file uploaded against the
       # project in FlavorFlow is used; with one, it wins — which is the escape
@@ -230,11 +262,10 @@ jobs:
           form: all
           # Facts about this build rather than answers about the client, so
           # they travel as params instead of living in the saved answers.
-          form-params: |
-            aab=${{ steps.aab.outputs.path }}
-            app_icon=${{ steps.aab.outputs.icon }}
-            feature_graphic=${{ steps.aab.outputs.feature }}
-            phone_screenshots=${{ steps.aab.outputs.shots }}
+          # One expression, not a block: the lines are read as k=v without
+          # trimming, so an indented continuation would carry its spaces into
+          # the key.
+          form-params: ${{ steps.aab.outputs.params }}
           data-safety-csv: ${{ steps.csv.outputs.path }}
           app-id: ${{ inputs.play_app_id }}
           # Whether this happens is the workspace's setting in Store

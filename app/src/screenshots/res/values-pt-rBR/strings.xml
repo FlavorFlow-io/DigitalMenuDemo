@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The Portuguese half of the listing copy. Same names as values/strings.xml, so the
+  screenshot run resolves whichever locale it is rendering.
+-->
+<resources>
+    <string name="screenshot_menu_title">O cardápio inteiro, no celular</string>
+    <string name="screenshot_menu_desc">Navegue por categoria, com fotos e preços</string>
+
+    <string name="screenshot_cart_title">Monte o pedido enquanto navega</string>
+    <string name="screenshot_cart_desc">Toque para adicionar e ajuste as quantidades</string>
+
+    <string name="screenshot_checkout_title">Peça sem esperar</string>
+    <string name="screenshot_checkout_desc">Envie da mesa e pague como preferir</string>
+
+    <string name="screenshot_feature_title">Seu cardápio, pronto para pedir</string>
+    <string name="screenshot_feature_desc">Navegue, peça e pague — da mesa</string>
+
+    <string name="sample_category_starters">Entradas</string>
+    <string name="sample_category_mains">Pratos principais</string>
+    <string name="sample_garlic_bread_desc">Pão de alho na brasa, manteiga da casa</string>
+    <string name="sample_coxinha_desc">Frango desfiado, massa crocante</string>
+    <string name="sample_feijoada_desc">Feijão preto, carnes, laranja, farofa</string>
+    <string name="sample_moqueca_desc">Peixe, leite de coco, dendê</string>
+    <string name="sample_payment_pix_desc">Transferência na hora</string>
+    <string name="sample_payment_card">Cartão</string>
+    <string name="sample_payment_card_desc">Visa final 4242</string>
+</resources>

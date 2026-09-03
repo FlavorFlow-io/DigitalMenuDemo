@@ -1,0 +1,25 @@
+<resources>
+    <string name="action_retry">Tentar de novo</string>
+    <string name="action_back">Voltar</string>
+    <string name="action_remove">Remover</string>
+    <string name="action_cancel">Cancelar</string>
+    <string name="action_add_to_cart">Adicionar ao carrinho</string>
+
+    <plurals name="cart_items">
+        <item quantity="one">%1$d item</item>
+        <item quantity="other">%1$d itens</item>
+    </plurals>
+    <string name="cart_empty">Seu carrinho está vazio</string>
+
+    <string name="checkout_title">Finalizar pedido</string>
+    <string name="checkout_order_confirmed">Pedido confirmado</string>
+    <string name="checkout_your_order">Seu pedido</string>
+    <string name="checkout_payment_method">Forma de pagamento</string>
+    <string name="checkout_subtotal">Subtotal</string>
+    <string name="checkout_delivery">Entrega</string>
+    <string name="checkout_total">Total</string>
+    <string name="checkout_place_order">Fazer pedido · %1$s</string>
+    <string name="checkout_order_placed">Pedido enviado!</string>
+    <string name="checkout_remove_title">Remover item?</string>
+    <string name="checkout_remove_message">Remover %1$s do seu pedido?</string>
+</resources>

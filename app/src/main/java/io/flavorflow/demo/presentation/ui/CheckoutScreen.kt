@@ -48,6 +48,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -61,6 +62,7 @@ import coil3.request.crossfade
 import io.flavorflow.demo.domain.model.CartItem
 import io.flavorflow.demo.domain.model.Product
 import io.flavorflow.demo.presentation.CheckoutUiState
+import io.flavorflow.demo.R
 import io.flavorflow.demo.presentation.PaymentMethod
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -78,10 +80,17 @@ fun CheckoutScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (uiState.orderPlaced) "Order confirmed" else "Checkout") },
+                title = {
+                    Text(
+                        stringResource(
+                            if (uiState.orderPlaced) R.string.checkout_order_confirmed
+                            else R.string.checkout_title
+                        )
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = if (uiState.orderPlaced) onDone else onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
                     }
                 },
             )
@@ -127,7 +136,7 @@ private fun CheckoutContent(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        item { SectionTitle("Your order") }
+        item { SectionTitle(stringResource(R.string.checkout_your_order)) }
 
         items(uiState.items, key = { it.product.id }) { item ->
             CartItemRow(
@@ -140,7 +149,7 @@ private fun CheckoutContent(
 
         item {
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-            SectionTitle("Payment method")
+            SectionTitle(stringResource(R.string.checkout_payment_method))
         }
 
         items(uiState.paymentMethods, key = { it.id }) { method ->
@@ -172,16 +181,18 @@ private fun RemoveItemDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Remove item?") },
-        text = { Text("Remove \"${item.product.name}\" from your order?") },
+        title = { Text(stringResource(R.string.checkout_remove_title)) },
+        text = {
+            Text(stringResource(R.string.checkout_remove_message, item.product.name))
+        },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text(text = "Remove", color = MaterialTheme.colorScheme.error)
+                Text(text = stringResource(R.string.action_remove), color = MaterialTheme.colorScheme.error)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(text = "Cancel")
+                Text(text = stringResource(R.string.action_cancel))
             }
         },
     )
@@ -244,7 +255,7 @@ private fun CartItemRow(
         IconButton(onClick = onRemove) {
             Icon(
                 Icons.Filled.Delete,
-                contentDescription = "Remove",
+                contentDescription = stringResource(R.string.action_remove),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
@@ -330,14 +341,14 @@ private fun CheckoutBottomBar(
         shadowElevation = 8.dp,
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            SummaryRow("Subtotal", formatPrice(uiState.subtotal))
+            SummaryRow(stringResource(R.string.checkout_subtotal), formatPrice(uiState.subtotal))
             Spacer(Modifier.height(4.dp))
-            SummaryRow("Delivery", formatPrice(uiState.deliveryFee))
+            SummaryRow(stringResource(R.string.checkout_delivery), formatPrice(uiState.deliveryFee))
             Spacer(Modifier.height(6.dp))
             HorizontalDivider()
             Spacer(Modifier.height(6.dp))
             SummaryRow(
-                label = "Total",
+                label = stringResource(R.string.checkout_total),
                 value = formatPrice(uiState.total),
                 emphasized = true,
             )
@@ -354,7 +365,7 @@ private fun CheckoutBottomBar(
                 ),
             ) {
                 Text(
-                    text = "Place order · ${formatPrice(uiState.total)}",
+                    text = stringResource(R.string.checkout_place_order, formatPrice(uiState.total)),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                 )
@@ -406,7 +417,7 @@ private fun OrderSuccess(onDone: () -> Unit) {
         }
         Spacer(Modifier.height(20.dp))
         Text(
-            text = "Order placed!",
+            text = stringResource(R.string.checkout_order_placed),
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
         )
@@ -440,7 +451,7 @@ private fun EmptyCart(onBack: () -> Unit) {
         verticalArrangement = Arrangement.Center,
     ) {
         Text(
-            text = "Your cart is empty",
+            text = stringResource(R.string.cart_empty),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
         )

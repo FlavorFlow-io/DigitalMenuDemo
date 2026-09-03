@@ -55,6 +55,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -124,7 +125,7 @@ fun MenuScreen(
                     ) {
                         Text(text = uiState.error)
                         Button(onClick = onRetry, modifier = Modifier.padding(top = 8.dp)) {
-                            Text(text = "Retry")
+                            Text(text = stringResource(R.string.action_retry))
                         }
                     }
                 }
@@ -337,7 +338,7 @@ private fun QuantityControl(
             Box(contentAlignment = Alignment.Center) {
                 Icon(
                     imageVector = Icons.Filled.Add,
-                    contentDescription = "Add to cart",
+                    contentDescription = stringResource(R.string.action_add_to_cart),
                     modifier = Modifier.size(20.dp),
                 )
             }
@@ -399,7 +400,7 @@ private fun CartFab(
         ) {
             Icon(imageVector = Icons.Filled.ShoppingCart, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
-            val label = if (itemCount == 1) "1 item" else "$itemCount items"
+            val label = pluralStringResource(R.plurals.cart_items, itemCount, itemCount)
             Text(
                 text = label,
                 fontWeight = FontWeight.SemiBold,

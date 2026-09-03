@@ -1,7 +1,9 @@
 package io.flavorflow.demo
 
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import dev.lucianosantos.storescreenshots.FormFactor
+import dev.lucianosantos.storescreenshots.ScreenshotStyle
 import dev.lucianosantos.storescreenshots.StoreScreenshotsTest
 import io.flavorflow.demo.domain.model.CartItem
 import io.flavorflow.demo.domain.model.Category
@@ -25,10 +27,22 @@ import org.junit.Test
  *
  * File names are numbered: Play orders screenshots by name.
  */
-class StoreScreenshots : StoreScreenshotsTest(FormFactor.Phone) {
+class StoreScreenshots : StoreScreenshotsTest(
+    formFactor = FormFactor.Phone,
+    // Rendered without the app's own window insets, so the frame reserves the status bar rather
+    // than letting the top app bar sit under the clock and the camera cutout.
+    style = ScreenshotStyle(edgeToEdge = false),
+) {
+
+    /**
+     * The listing's languages. Each entry renders the whole set again, with the banner copy, the
+     * app's own chrome and the sample menu all resolved for that locale.
+     */
+    private val locales = listOf("en-US", "pt-BR")
 
     @Test
     fun menu() = screenshot(
+        locales = locales,
         fileName = "01_menu",
         titleRes = R.string.screenshot_menu_title,
         descriptionRes = R.string.screenshot_menu_desc,
@@ -38,6 +52,7 @@ class StoreScreenshots : StoreScreenshotsTest(FormFactor.Phone) {
 
     @Test
     fun cart() = screenshot(
+        locales = locales,
         fileName = "02_cart",
         titleRes = R.string.screenshot_cart_title,
         descriptionRes = R.string.screenshot_cart_desc,
@@ -48,6 +63,7 @@ class StoreScreenshots : StoreScreenshotsTest(FormFactor.Phone) {
 
     @Test
     fun checkout() = screenshot(
+        locales = locales,
         fileName = "03_checkout",
         titleRes = R.string.screenshot_checkout_title,
         descriptionRes = R.string.screenshot_checkout_desc,
@@ -56,35 +72,47 @@ class StoreScreenshots : StoreScreenshotsTest(FormFactor.Phone) {
     }
 }
 
+@Composable
 private fun sampleMenu(cart: Map<String, Int> = emptyMap()) = MenuUiState(
     isLoading = false,
     cart = cart,
     sections = listOf(
         MenuSection(
-            category = Category(id = "c1", name = "Starters"),
+            category = Category(id = "c1", name = stringResource(R.string.sample_category_starters)),
             products = listOf(
-                Product("p1", "Pão de alho", "Grilled garlic bread, house butter", "", 12.0, "c1"),
-                Product("p2", "Coxinha", "Shredded chicken, crisp crumb", "", 9.5, "c1"),
+                Product("p1", "Pão de alho", stringResource(R.string.sample_garlic_bread_desc), "", 12.0, "c1"),
+                Product("p2", "Coxinha", stringResource(R.string.sample_coxinha_desc), "", 9.5, "c1"),
             ),
         ),
         MenuSection(
-            category = Category(id = "c2", name = "Mains"),
+            category = Category(id = "c2", name = stringResource(R.string.sample_category_mains)),
             products = listOf(
-                Product("p3", "Feijoada", "Black beans, pork, orange, farofa", "", 46.0, "c2"),
-                Product("p4", "Moqueca", "Fish stew, coconut milk, dendê", "", 52.0, "c2"),
+                Product("p3", "Feijoada", stringResource(R.string.sample_feijoada_desc), "", 46.0, "c2"),
+                Product("p4", "Moqueca", stringResource(R.string.sample_moqueca_desc), "", 52.0, "c2"),
             ),
         ),
     ),
 )
 
+@Composable
 private fun sampleCheckout() = CheckoutUiState(
     items = listOf(
-        CartItem(product = Product("p1", "Pão de alho", "Grilled garlic bread", "", 12.0, "c1"), quantity = 2),
-        CartItem(product = Product("p3", "Feijoada", "Black beans, pork, farofa", "", 46.0, "c2"), quantity = 1),
+        CartItem(
+            product = Product("p1", "Pão de alho", stringResource(R.string.sample_garlic_bread_desc), "", 12.0, "c1"),
+            quantity = 2,
+        ),
+        CartItem(
+            product = Product("p3", "Feijoada", stringResource(R.string.sample_feijoada_desc), "", 46.0, "c2"),
+            quantity = 1,
+        ),
     ),
     paymentMethods = listOf(
-        PaymentMethod("pix", "Pix", "Instant transfer"),
-        PaymentMethod("card", "Card", "Visa ending 4242"),
+        PaymentMethod("pix", "Pix", stringResource(R.string.sample_payment_pix_desc)),
+        PaymentMethod(
+            "card",
+            stringResource(R.string.sample_payment_card),
+            stringResource(R.string.sample_payment_card_desc),
+        ),
     ),
     selectedPaymentId = "pix",
 )

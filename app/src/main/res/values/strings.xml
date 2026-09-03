@@ -1,3 +1,33 @@
 <resources>
     <string name="app_name">DigitalMenu</string>
+
+    <!--
+      The screens are shown to diners, so their copy is translated. The listing
+      screenshots are rendered from these same screens, which is how a Portuguese
+      listing gets Portuguese screenshots rather than an English app under a
+      translated banner.
+    -->
+    <string name="action_retry">Retry</string>
+    <string name="action_back">Back</string>
+    <string name="action_remove">Remove</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_add_to_cart">Add to cart</string>
+
+    <plurals name="cart_items">
+        <item quantity="one">%1$d item</item>
+        <item quantity="other">%1$d items</item>
+    </plurals>
+    <string name="cart_empty">Your cart is empty</string>
+
+    <string name="checkout_title">Checkout</string>
+    <string name="checkout_order_confirmed">Order confirmed</string>
+    <string name="checkout_your_order">Your order</string>
+    <string name="checkout_payment_method">Payment method</string>
+    <string name="checkout_subtotal">Subtotal</string>
+    <string name="checkout_delivery">Delivery</string>
+    <string name="checkout_total">Total</string>
+    <string name="checkout_place_order">Place order · %1$s</string>
+    <string name="checkout_order_placed">Order placed!</string>
+    <string name="checkout_remove_title">Remove item?</string>
+    <string name="checkout_remove_message">Remove %1$s from your order?</string>
 </resources>

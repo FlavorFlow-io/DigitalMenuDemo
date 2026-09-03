@@ -37,7 +37,10 @@ import org.junit.Test
 class FeatureGraphic : StoreScreenshotsTest(FormFactor.GooglePlayFeatureGraphic) {
 
     @Test
-    fun banner() = customScreenshot(fileName = "feature_graphic") {
+    fun banner() = customScreenshot(
+        locales = listOf("en-US", "pt-BR"),
+        fileName = "feature_graphic",
+    ) {
         DigitalMenuTheme {
             val scheme = MaterialTheme.colorScheme
             Row(
@@ -70,7 +73,11 @@ class FeatureGraphic : StoreScreenshotsTest(FormFactor.GooglePlayFeatureGraphic)
                 }
                 // A real screen in the frame, so the banner shows the actual app.
                 Box(Modifier.fillMaxHeight().padding(end = 40.dp), Alignment.Center) {
-                    DeviceMockup(formFactor = FormFactor.Phone, modifier = Modifier.fillMaxHeight()) {
+                    DeviceMockup(
+                        formFactor = FormFactor.Phone,
+                        edgeToEdge = false,
+                        modifier = Modifier.fillMaxHeight(),
+                    ) {
                         MenuScreen(uiState = featureMenuState())
                     }
                 }
@@ -80,25 +87,32 @@ class FeatureGraphic : StoreScreenshotsTest(FormFactor.GooglePlayFeatureGraphic)
 }
 
 /** A populated menu, so the framed device shows content rather than a spinner. */
+@Composable
 private fun featureMenuState() = io.flavorflow.demo.presentation.MenuUiState(
     isLoading = false,
     sections = listOf(
         io.flavorflow.demo.domain.model.MenuSection(
-            category = io.flavorflow.demo.domain.model.Category(id = "c1", name = "Starters"),
+            category = io.flavorflow.demo.domain.model.Category(
+                id = "c1",
+                name = stringResource(R.string.sample_category_starters),
+            ),
             products = listOf(
                 io.flavorflow.demo.domain.model.Product(
-                    "p1", "Pão de alho", "Grilled garlic bread", "", 12.0, "c1",
+                    "p1", "Pão de alho", stringResource(R.string.sample_garlic_bread_desc), "", 12.0, "c1",
                 ),
                 io.flavorflow.demo.domain.model.Product(
-                    "p2", "Coxinha", "Shredded chicken, crisp crumb", "", 9.5, "c1",
+                    "p2", "Coxinha", stringResource(R.string.sample_coxinha_desc), "", 9.5, "c1",
                 ),
             ),
         ),
         io.flavorflow.demo.domain.model.MenuSection(
-            category = io.flavorflow.demo.domain.model.Category(id = "c2", name = "Mains"),
+            category = io.flavorflow.demo.domain.model.Category(
+                id = "c2",
+                name = stringResource(R.string.sample_category_mains),
+            ),
             products = listOf(
                 io.flavorflow.demo.domain.model.Product(
-                    "p3", "Feijoada", "Black beans, pork, farofa", "", 46.0, "c2",
+                    "p3", "Feijoada", stringResource(R.string.sample_feijoada_desc), "", 46.0, "c2",
                 ),
             ),
         ),
