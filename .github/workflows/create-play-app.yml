@@ -24,8 +24,8 @@ name: Create Play App
 # nothing about which client each was for. This is what the app matches a run
 # to a client with, and what makes the run list legible in GitHub too.
 run-name: >-
-  ${{ inputs.client_name && format('{0} ({1})', inputs.client_name, inputs.client_id) || 'Create Play App' }}
-
+  ${{ inputs.client_id && format('{0} ({1})', inputs.client_name || 'client', inputs.client_id)
+   || 'Create Play App' }}
 on:
   # FlavorFlow dispatches this when a client is added to the bound project.
   # Every input it sends must be declared or GitHub rejects the dispatch with
@@ -96,7 +96,11 @@ jobs:
     secrets: inherit
 
   create:
-    name: First release for '${{ inputs.client_name }}' (console)
+    # client_name is optional on dispatch — the action resolves the real name
+    # from the API — and a job named from it alone came out as "First release
+    # for ''". These names are read before any step runs, so the dispatched id
+    # is the only thing left to fall back to.
+    name: First release for ${{ inputs.client_name || inputs.client_id || 'a new client' }} (console)
     needs: build
     if: inputs.client_id != ''
     # A real desktop browser against a signed-in Google session, which a
