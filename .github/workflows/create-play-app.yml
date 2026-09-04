@@ -20,6 +20,12 @@
 #   Variable TEST_PROJECT_ID  = FlavorFlow project id
 name: Create Play App
 
+# Every run of a workflow carries the workflow's name, so a list of them says
+# nothing about which client each was for. This is what the app matches a run
+# to a client with, and what makes the run list legible in GitHub too.
+run-name: >-
+  ${{ inputs.client_name && format('{0} ({1})', inputs.client_name, inputs.client_id) || 'Create Play App' }}
+
 on:
   # FlavorFlow dispatches this when a client is added to the bound project.
   # Every input it sends must be declared or GitHub rejects the dispatch with
