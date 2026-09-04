@@ -30,6 +30,14 @@ on:
         type: string
         required: false
         default: ''
+    outputs:
+      client_name:
+        description: >-
+          The client's real name, read from the project rather than from the
+          dispatch. client_name is optional on dispatch, so a caller naming a
+          job after its input alone ends up with a blank or an id; a job name
+          can read this because it resolves with the job it depends on.
+        value: ${{ jobs.fetch-flavors.outputs.client_name }}
 
   push:
     branches: [ main ]
@@ -46,6 +54,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       flavors: ${{ steps.select.outputs.flavors }}
+      client_name: ${{ steps.select.outputs.client_name }}
     steps:
       - uses: actions/checkout@v5
 
@@ -83,6 +92,10 @@ jobs:
             fi
           fi
           echo "flavors=$selected" >> "$GITHUB_OUTPUT"
+          # The client's own name, so a caller can title its jobs with it. The
+          # dispatch may not carry one — FlavorFlow sends it, a person running
+          # this by hand usually does not — and this is read from the project.
+          echo "client_name=$(jq -r 'first(.[] | .name) // empty' <<< "$selected")" >> "$GITHUB_OUTPUT"
 
       - name: Summarise what is being built
         env:

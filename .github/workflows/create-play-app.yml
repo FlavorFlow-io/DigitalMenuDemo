@@ -100,7 +100,12 @@ jobs:
     # from the API — and a job named from it alone came out as "First release
     # for ''". These names are read before any step runs, so the dispatched id
     # is the only thing left to fall back to.
-    name: First release for ${{ inputs.client_name || inputs.client_id || 'a new client' }} (console)
+    # needs.build resolves before this is read, so the client's real name is
+    # available even when the dispatch did not carry one — which is how this
+    # came out as "First release for ''" and then as a bare id.
+    name: >-
+      First release for ${{ needs.build.outputs.client_name || inputs.client_name
+       || inputs.client_id || 'a new client' }} (console)
     needs: build
     if: inputs.client_id != ''
     # A real desktop browser against a signed-in Google session, which a
