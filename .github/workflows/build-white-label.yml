@@ -231,6 +231,7 @@ jobs:
           chmod 600 "$RUNNER_TEMP/upload.jks"
 
       - name: Build signed release bundle
+        id: bundle
         if: steps.signing.outputs.available == 'true'
         env:
           ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/upload.jks
@@ -266,6 +267,13 @@ jobs:
           version_code=$(( ($(date -u +%s) - 1767225600) / 60 * 10 + attempt ))
           version_name="1.0.${{ github.run_number }}.${{ github.run_attempt }}"
           echo "versionCode=$version_code  versionName=$version_name"
+          # Reported onwards so what reached Play can be recorded against the
+          # client. Nothing else knows it: the code is derived here, and Play's
+          # API will not say when a release was submitted.
+          {
+            echo "version_code=$version_code"
+            echo "version_name=$version_name"
+          } >> "$GITHUB_OUTPUT"
           ./gradlew bundleRelease --stacktrace \
             -PversionCode="$version_code" \
             -PversionName="$version_name"
@@ -287,12 +295,27 @@ jobs:
           echo "Signed: $aab"
           jarsigner -verify "$aab" | head -1
 
+      # Travels with the bundle rather than as a job output: this job is a
+      # matrix, so an output would be whichever client finished last.
+      - name: Record what this bundle is
+        if: steps.signing.outputs.available == 'true'
+        run: |
+          set -euo pipefail
+          dir=$(dirname "$(find . -path '*/outputs/bundle/release/*.aab' | head -1)")
+          jq -n \
+            --arg name "${{ steps.bundle.outputs.version_name }}" \
+            --argjson code "${{ steps.bundle.outputs.version_code }}" \
+            '{version_name: $name, version_code: $code}' > "$dir/release-info.json"
+          cat "$dir/release-info.json"
+
       - name: Upload release bundle
         if: steps.signing.outputs.available == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: bundle-${{ matrix.name }}.aab
-          path: '**/outputs/bundle/release/*.aab'
+          path: |
+            **/outputs/bundle/release/*.aab
+            **/outputs/bundle/release/release-info.json
 
       - name: Remove the keystore
         if: always() && steps.signing.outputs.available == 'true'

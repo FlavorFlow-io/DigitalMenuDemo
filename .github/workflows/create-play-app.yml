@@ -329,9 +329,27 @@ jobs:
           APP_ID: ${{ steps.play.outputs.app-id }}
         run: |
           set -euo pipefail
+          # What was released, alongside the app it was released to. The build
+          # writes this next to the bundle; without it the app can only say a
+          # client has an app, not which version of it is on Play.
+          info=$(find "$RUNNER_TEMP" . -name release-info.json 2>/dev/null | head -1)
+          body=$(jq -n --arg id "$APP_ID" '{play_app_id: $id}')
+          if [ -n "$info" ]; then
+            body=$(jq -n \
+              --arg id "$APP_ID" \
+              --arg at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+              --slurpfile v "$info" \
+              '{play_app_id: $id,
+                last_release_version_name: $v[0].version_name,
+                last_release_version_code: $v[0].version_code,
+                last_release_submitted_at: $at}')
+            echo "Reporting $(jq -c . <<<"$body")"
+          else
+            echo "::notice::No release-info.json beside the bundle — recording the app id only."
+          fi
           code=$(curl -sS -o /tmp/rec.json -w '%{http_code}' -X PUT \
             -H "Authorization: Bearer $API_KEY" -H 'Content-Type: application/json' \
-            -d "$(jq -n --arg id "$APP_ID" '{play_app_id: $id}')" \
+            -d "$body" \
             "https://api.flavorflow.io/v1/projects/${{ inputs.project_id }}/clients/${{ inputs.client_id }}")
           if [ "$code" = "200" ] || [ "$code" = "201" ]; then
             echo "Recorded Play app id $APP_ID against the client."
