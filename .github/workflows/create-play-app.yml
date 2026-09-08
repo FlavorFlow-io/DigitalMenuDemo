@@ -111,6 +111,12 @@ jobs:
     # A real desktop browser against a signed-in Google session, which a
     # GitHub-hosted runner can be neither of.
     runs-on: [self-hosted, macOS]
+    # There is one of these runners, so a step that hangs blocks every client
+    # behind it. A run that has not finished in forty minutes is stuck: a step
+    # once spun for three hours and twenty minutes and stopped only when Chrome
+    # died. The sign-in wait is the longest legitimate part and has its own
+    # thirty-minute limit inside the action.
+    timeout-minutes: 40
     outputs:
       app_id: ${{ steps.play.outputs.app-id }}
       created: ${{ steps.play.outputs.created }}
