@@ -269,8 +269,14 @@ jobs:
 
       - name: Create the app and fill its forms, and release it
         id: play
-        uses: FlavorFlow-io/create-play-app-action@main
+        # Pinned, both halves together. The action and the form-cli it
+        # downloads are released as one thing, and 'main' plus 'latest'
+        # let them drift apart: a run has already picked up an action
+        # that expected a CLI nobody had published yet. Move both when
+        # moving either.
+        uses: FlavorFlow-io/create-play-app-action@v1.1.2
         with:
+          cli-version: v1.1.2
           api-key: ${{ secrets.TEST_API_KEY }}
           project-id: ${{ inputs.project_id }}
           client-id: ${{ inputs.client_id }}
