@@ -142,6 +142,11 @@ jobs:
         with:
           distribution: 'jetbrains'
           java-version: '21'
+          # Downloading the JDK is a GitHub API call, and without a token it is
+          # anonymous: sixty an hour shared with every other runner leaving the
+          # same address, which two builds in a row spent before they could
+          # fetch anything. The repo's own token raises that to a thousand.
+          token: ${{ github.token }}
 
       - name: Cache Gradle packages
         uses: actions/cache@v5
