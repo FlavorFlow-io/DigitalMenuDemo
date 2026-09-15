@@ -1,0 +1,171 @@
+{
+  "banner": "https://loremflickr.com/1200/600/restaurant,interior,dining?lock=20260910",
+  "categories": [
+    {
+      "id": "burgers",
+      "name": "Burgers"
+    },
+    {
+      "id": "pizzas",
+      "name": "Pizzas"
+    },
+    {
+      "id": "salads",
+      "name": "Salads"
+    },
+    {
+      "id": "drinks",
+      "name": "Drinks"
+    },
+    {
+      "id": "desserts",
+      "name": "Desserts"
+    }
+  ],
+  "products": [
+    {
+      "id": "burgers-0",
+      "categoryId": "burgers",
+      "name": "Classic Cheeseburger",
+      "description": "Beef patty, cheddar, lettuce, tomato",
+      "price": 16.0,
+      "imageUrl": "https://loremflickr.com/400/300/classic,cheeseburger,food?lock=180007194"
+    },
+    {
+      "id": "burgers-1",
+      "categoryId": "burgers",
+      "name": "Bacon Deluxe",
+      "description": "Double bacon, smoked cheese, BBQ sauce",
+      "price": 19.0,
+      "imageUrl": "https://loremflickr.com/400/300/bacon,deluxe,food?lock=3789266004"
+    },
+    {
+      "id": "burgers-2",
+      "categoryId": "burgers",
+      "name": "Veggie Burger",
+      "description": "Grilled mushroom, avocado, vegan mayo",
+      "price": 22.0,
+      "imageUrl": "https://loremflickr.com/400/300/veggie,burger,food?lock=983595274"
+    },
+    {
+      "id": "burgers-3",
+      "categoryId": "burgers",
+      "name": "Spicy Chicken",
+      "description": "Crispy chicken, jalapeños, chipotle sauce",
+      "price": 25.0,
+      "imageUrl": "https://loremflickr.com/400/300/spicy,chicken,food?lock=3700776567"
+    },
+    {
+      "id": "pizzas-0",
+      "categoryId": "pizzas",
+      "name": "Margherita",
+      "description": "Tomato, mozzarella, fresh basil",
+      "price": 15.0,
+      "imageUrl": "https://loremflickr.com/400/300/margherita,food?lock=3928594826"
+    },
+    {
+      "id": "pizzas-1",
+      "categoryId": "pizzas",
+      "name": "Pepperoni",
+      "description": "Pepperoni, mozzarella, oregano",
+      "price": 18.0,
+      "imageUrl": "https://loremflickr.com/400/300/pepperoni,food?lock=987159784"
+    },
+    {
+      "id": "pizzas-2",
+      "categoryId": "pizzas",
+      "name": "Four Cheese",
+      "description": "Mozzarella, gorgonzola, parmesan, brie",
+      "price": 21.0,
+      "imageUrl": "https://loremflickr.com/400/300/four,cheese,food?lock=3170024721"
+    },
+    {
+      "id": "pizzas-3",
+      "categoryId": "pizzas",
+      "name": "Veggie Supreme",
+      "description": "Peppers, onions, olives, mushrooms",
+      "price": 24.0,
+      "imageUrl": "https://loremflickr.com/400/300/veggie,supreme,food?lock=2627823716"
+    },
+    {
+      "id": "salads-0",
+      "categoryId": "salads",
+      "name": "Caesar Salad",
+      "description": "Romaine, croutons, parmesan, Caesar dressing",
+      "price": 15.0,
+      "imageUrl": "https://loremflickr.com/400/300/caesar,salad,food?lock=2416988510"
+    },
+    {
+      "id": "salads-1",
+      "categoryId": "salads",
+      "name": "Greek Salad",
+      "description": "Cucumber, tomato, feta, olives",
+      "price": 18.0,
+      "imageUrl": "https://loremflickr.com/400/300/greek,salad,food?lock=3868042017"
+    },
+    {
+      "id": "salads-2",
+      "categoryId": "salads",
+      "name": "Quinoa Bowl",
+      "description": "Quinoa, chickpeas, avocado, lemon dressing",
+      "price": 21.0,
+      "imageUrl": "https://loremflickr.com/400/300/quinoa,bowl,food?lock=3422320391"
+    },
+    {
+      "id": "drinks-0",
+      "categoryId": "drinks",
+      "name": "Fresh Lemonade",
+      "description": "Squeezed lemons, mint, sparkling water",
+      "price": 15.0,
+      "imageUrl": "https://loremflickr.com/400/300/fresh,lemonade,food?lock=556990401"
+    },
+    {
+      "id": "drinks-1",
+      "categoryId": "drinks",
+      "name": "Iced Coffee",
+      "description": "Cold brew, milk, ice",
+      "price": 18.0,
+      "imageUrl": "https://loremflickr.com/400/300/iced,coffee,food?lock=368787091"
+    },
+    {
+      "id": "drinks-2",
+      "categoryId": "drinks",
+      "name": "Orange Juice",
+      "description": "100% freshly squeezed oranges",
+      "price": 21.0,
+      "imageUrl": "https://loremflickr.com/400/300/orange,juice,food?lock=3627566318"
+    },
+    {
+      "id": "drinks-3",
+      "categoryId": "drinks",
+      "name": "Craft Soda",
+      "description": "Artisanal cola with cane sugar",
+      "price": 24.0,
+      "imageUrl": "https://loremflickr.com/400/300/cola,drink,food?lock=765208089"
+    },
+    {
+      "id": "desserts-0",
+      "categoryId": "desserts",
+      "name": "Chocolate Brownie",
+      "description": "Warm brownie, vanilla ice cream",
+      "price": 17.0,
+      "imageUrl": "https://loremflickr.com/400/300/chocolate,brownie,food?lock=3148673710"
+    },
+    {
+      "id": "desserts-1",
+      "categoryId": "desserts",
+      "name": "Cheesecake",
+      "description": "New York style, berry compote",
+      "price": 20.0,
+      "imageUrl": "https://loremflickr.com/400/300/cheesecake,food?lock=3484211119"
+    },
+    {
+      "id": "desserts-2",
+      "categoryId": "desserts",
+      "name": "Tiramisu",
+      "description": "Espresso-soaked ladyfingers, mascarpone",
+      "price": 23.0,
+      "imageUrl": "https://loremflickr.com/400/300/tiramisu,food?lock=2422442626"
+    }
+  ]
+}

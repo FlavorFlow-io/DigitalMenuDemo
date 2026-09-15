@@ -2,16 +2,21 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Required for loading menu data from Firestore and product images from the network. -->
+    <!-- The menu and its photos are bundled at build time, so the app needs no network to
+         run. This stays for the one case that does: a build whose photo prefetch failed
+         leaves those products pointing at their original URLs. -->
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- No android:roundIcon: apply-flavor-action regenerates ic_launcher from the
+         client's logo but leaves ic_launcher_round on the default template, and
+         launchers prefer the round one — so every branded build shipped the stock
+         Android icon. One icon, and the adaptive mask shapes it per launcher. -->
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.DigitalMenu">
         <activity

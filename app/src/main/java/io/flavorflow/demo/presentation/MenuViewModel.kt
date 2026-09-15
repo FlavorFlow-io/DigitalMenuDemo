@@ -1,6 +1,7 @@
 package io.flavorflow.demo.presentation
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -24,6 +25,7 @@ class MenuViewModel(
     /** Loading-related state; the cart part of the UI state comes from [cart]. */
     private data class LoadState(
         val isLoading: Boolean = true,
+        val bannerImageUrl: String? = null,
         val sections: List<MenuSection> = emptyList(),
         val error: String? = null,
     )
@@ -34,6 +36,7 @@ class MenuViewModel(
         combine(loadState, cart.items) { load, items ->
             MenuUiState(
                 isLoading = load.isLoading,
+                bannerImageUrl = load.bannerImageUrl,
                 sections = load.sections,
                 error = load.error,
                 cart = items.associate { it.product.id to it.quantity },
@@ -48,8 +51,14 @@ class MenuViewModel(
         loadState.update { it.copy(isLoading = true, error = null) }
         viewModelScope.launch {
             runCatching { getMenu() }
-                .onSuccess { sections ->
-                    loadState.update { it.copy(isLoading = false, sections = sections) }
+                .onSuccess { menu ->
+                    loadState.update {
+                        it.copy(
+                            isLoading = false,
+                            bannerImageUrl = menu.bannerImageUrl,
+                            sections = menu.sections,
+                        )
+                    }
                 }
                 .onFailure { throwable ->
                     loadState.update {
@@ -73,7 +82,15 @@ class MenuViewModel(
     companion object {
         val Factory = viewModelFactory {
             initializer {
-                MenuViewModel(ServiceLocator.getMenuUseCase, ServiceLocator.cartRepository)
+                // The menu is read from the app's own assets, so the repository
+                // needs a Context; CreationExtras carries the Application here,
+                // which spares the app a subclass and a manifest entry.
+                val application = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY]
+                    ?: error("MenuViewModel needs the Application in CreationExtras")
+                MenuViewModel(
+                    ServiceLocator.getMenuUseCase(application),
+                    ServiceLocator.cartRepository,
+                )
             }
         }
     }

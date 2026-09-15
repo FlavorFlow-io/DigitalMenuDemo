@@ -1,0 +1,145 @@
+{
+  "banner": "https://loremflickr.com/1200/600/bistro,interior,dining?lock=10010",
+  "categories": [
+    {
+      "id": "starters",
+      "name": "Starters"
+    },
+    {
+      "id": "mains",
+      "name": "Mains"
+    },
+    {
+      "id": "sides",
+      "name": "Sides"
+    },
+    {
+      "id": "drinks",
+      "name": "Drinks"
+    },
+    {
+      "id": "desserts",
+      "name": "Desserts"
+    }
+  ],
+  "products": [
+    {
+      "id": "starters-1",
+      "categoryId": "starters",
+      "name": "Pão de alho",
+      "description": "Grilled garlic bread, house butter",
+      "price": 12.0,
+      "imageUrl": "https://loremflickr.com/400/300/garlic,bread,food?lock=10011"
+    },
+    {
+      "id": "starters-2",
+      "categoryId": "starters",
+      "name": "Bolinho de bacalhau",
+      "description": "Six cod fritters, lemon aioli",
+      "price": 28.5,
+      "imageUrl": "https://loremflickr.com/400/300/cod,fritters,food?lock=10012"
+    },
+    {
+      "id": "starters-3",
+      "categoryId": "starters",
+      "name": "Caldinho de feijão",
+      "description": "Black bean broth, crisp pancetta",
+      "price": 16.0,
+      "imageUrl": "https://loremflickr.com/400/300/bean,soup,food?lock=10013"
+    },
+    {
+      "id": "mains-1",
+      "categoryId": "mains",
+      "name": "Picanha na chapa",
+      "description": "Sirloin cap, farofa, vinaigrette",
+      "price": 89.0,
+      "imageUrl": "https://loremflickr.com/400/300/steak,grilled,food?lock=10014"
+    },
+    {
+      "id": "mains-2",
+      "categoryId": "mains",
+      "name": "Moqueca de camarão",
+      "description": "Shrimp, coconut milk, dendê oil, rice",
+      "price": 78.0,
+      "imageUrl": "https://loremflickr.com/400/300/shrimp,curry,food?lock=10015"
+    },
+    {
+      "id": "mains-3",
+      "categoryId": "mains",
+      "name": "Frango com quiabo",
+      "description": "Braised chicken, okra, polenta",
+      "price": 54.0,
+      "imageUrl": "https://loremflickr.com/400/300/braised,chicken,food?lock=10016"
+    },
+    {
+      "id": "mains-4",
+      "categoryId": "mains",
+      "name": "Risoto de palmito",
+      "description": "Heart of palm, parmesan, brown butter",
+      "price": 62.0,
+      "imageUrl": "https://loremflickr.com/400/300/risotto,rice,food?lock=10017"
+    },
+    {
+      "id": "sides-1",
+      "categoryId": "sides",
+      "name": "Arroz de brócolis",
+      "description": "Garlic rice, broccoli",
+      "price": 18.0,
+      "imageUrl": "https://loremflickr.com/400/300/rice,broccoli,food?lock=10018"
+    },
+    {
+      "id": "sides-2",
+      "categoryId": "sides",
+      "name": "Batata rústica",
+      "description": "Rosemary potatoes, sea salt",
+      "price": 22.0,
+      "imageUrl": "https://loremflickr.com/400/300/roast,potatoes,food?lock=10019"
+    },
+    {
+      "id": "sides-3",
+      "categoryId": "sides",
+      "name": "Couve refogada",
+      "price": 14.0
+    },
+    {
+      "id": "drinks-1",
+      "categoryId": "drinks",
+      "name": "Caipirinha",
+      "description": "Cachaça, lime, sugar",
+      "price": 26.0,
+      "imageUrl": "https://loremflickr.com/400/300/caipirinha,cocktail?lock=10020"
+    },
+    {
+      "id": "drinks-2",
+      "categoryId": "drinks",
+      "name": "Suco de maracujá",
+      "description": "Fresh passion fruit juice",
+      "price": 14.0,
+      "imageUrl": "https://loremflickr.com/400/300/passion,fruit,juice?lock=10021"
+    },
+    {
+      "id": "drinks-3",
+      "categoryId": "drinks",
+      "name": "Água com gás",
+      "description": "500 ml",
+      "price": 8.0,
+      "imageUrl": "https://loremflickr.com/400/300/sparkling,water,glass?lock=10022"
+    },
+    {
+      "id": "desserts-1",
+      "categoryId": "desserts",
+      "name": "Pudim de leite",
+      "description": "Condensed milk flan, burnt caramel",
+      "price": 24.0,
+      "imageUrl": "https://loremflickr.com/400/300/flan,caramel,dessert?lock=10023"
+    },
+    {
+      "id": "desserts-2",
+      "categoryId": "desserts",
+      "name": "Brigadeirão",
+      "description": "Baked chocolate fudge, cocoa nibs",
+      "price": 26.0,
+      "imageUrl": "https://loremflickr.com/400/300/chocolate,fudge,dessert?lock=10024"
+    }
+  ]
+}

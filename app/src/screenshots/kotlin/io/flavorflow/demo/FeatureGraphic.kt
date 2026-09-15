@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -24,6 +23,7 @@ import dev.lucianosantos.storescreenshots.FormFactor
 import dev.lucianosantos.storescreenshots.StoreScreenshotsTest
 import io.flavorflow.demo.presentation.ui.MenuScreen
 import io.flavorflow.demo.ui.theme.DigitalMenuTheme
+import org.junit.Before
 import org.junit.Test
 
 /**
@@ -35,6 +35,9 @@ import org.junit.Test
  * rebranded banner with no extra work.
  */
 class FeatureGraphic : StoreScreenshotsTest(FormFactor.GooglePlayFeatureGraphic) {
+
+    @Before
+    fun useSynchronousImageLoader() = BundledMenu.installSynchronousImageLoader()
 
     @Test
     fun banner() = customScreenshot(
@@ -86,35 +89,9 @@ class FeatureGraphic : StoreScreenshotsTest(FormFactor.GooglePlayFeatureGraphic)
     }
 }
 
-/** A populated menu, so the framed device shows content rather than a spinner. */
-@Composable
+/** The build's own menu, so the framed device shows the client's real dishes. */
 private fun featureMenuState() = io.flavorflow.demo.presentation.MenuUiState(
     isLoading = false,
-    sections = listOf(
-        io.flavorflow.demo.domain.model.MenuSection(
-            category = io.flavorflow.demo.domain.model.Category(
-                id = "c1",
-                name = stringResource(R.string.sample_category_starters),
-            ),
-            products = listOf(
-                io.flavorflow.demo.domain.model.Product(
-                    "p1", "Pão de alho", stringResource(R.string.sample_garlic_bread_desc), "", 12.0, "c1",
-                ),
-                io.flavorflow.demo.domain.model.Product(
-                    "p2", "Coxinha", stringResource(R.string.sample_coxinha_desc), "", 9.5, "c1",
-                ),
-            ),
-        ),
-        io.flavorflow.demo.domain.model.MenuSection(
-            category = io.flavorflow.demo.domain.model.Category(
-                id = "c2",
-                name = stringResource(R.string.sample_category_mains),
-            ),
-            products = listOf(
-                io.flavorflow.demo.domain.model.Product(
-                    "p3", "Feijoada", stringResource(R.string.sample_feijoada_desc), "", 46.0, "c2",
-                ),
-            ),
-        ),
-    ),
+    bannerImageUrl = BundledMenu.content.bannerImageUrl,
+    sections = BundledMenu.sections,
 )

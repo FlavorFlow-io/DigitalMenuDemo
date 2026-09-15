@@ -9,6 +9,8 @@ import io.flavorflow.demo.domain.model.MenuSection
  */
 data class MenuUiState(
     val isLoading: Boolean = true,
+    /** The restaurant's cover photo behind the category tabs, if it has one. */
+    val bannerImageUrl: String? = null,
     val sections: List<MenuSection> = emptyList(),
     val error: String? = null,
     val cart: Map<String, Int> = emptyMap(),

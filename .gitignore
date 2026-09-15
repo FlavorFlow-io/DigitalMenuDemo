@@ -15,10 +15,6 @@
 local.properties
 .hotswan/
 
-# Firebase
-.firebase/
-firebase-debug.log
-firebase/seed/node_modules/
 # Never commit service-account keys
 **/serviceAccount*.json
 **/*-service-account.json

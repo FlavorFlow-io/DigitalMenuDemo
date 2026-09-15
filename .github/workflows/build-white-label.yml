@@ -131,6 +131,11 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # Besides the theme, app name, package and icon, this downloads the client's
+      # asset variables and exports each one's path — `menu_json` becomes $MENU_JSON,
+      # which :app:prepareMenuAssets reads to bundle that client's menu and photos.
+      # Without it (a fork with no API key, a local run) the build falls back to the
+      # checked-in app/menu/menu.json.
       - name: Apply branding
         uses: FlavorFlow-io/apply-flavor-action@v1
         with:
@@ -155,34 +160,47 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle/libs.versions.toml') }}
           restore-keys: ${{ runner.os }}-gradle
 
-      # apply-flavor-action rewrites the app's package, but it only knows about
-      # the main source set — so the screenshot sources kept declaring and
-      # importing io.flavorflow.demo and stopped compiling for every client
-      # whose package differs. Follow the namespace it actually left behind.
-      - name: Point the screenshot sources at this client's package
+      # apply-flavor-action rewrites the app's package, but only fully for src/main.
+      # Under src/test and src/screenshots it moves the files and rewrites the
+      # `package` line, then leaves every `import io.flavorflow.demo.…` pointing at
+      # a package that no longer exists — so anything importing an app class stops
+      # compiling for every client whose package differs. storeScreenshots depends
+      # on testDebugUnitTest, so that breaks the listing art too, not just the tests.
+      # Follow the namespace apply-flavor-action actually left behind.
+      - name: Point the test and screenshot sources at this client's package
         run: |
           set -euo pipefail
           ns=$(grep -oE 'namespace = "[^"]+"' app/build.gradle.kts | head -1 | cut -d'"' -f2)
           old=io.flavorflow.demo
-          src=app/src/screenshots/kotlin
           if [ -z "$ns" ] || [ "$ns" = "$old" ]; then
-            echo "Package unchanged ($ns) — screenshot sources left alone."
+            echo "Package unchanged ($ns) — sources left alone."
             exit 0
           fi
-          dest="$src/$(echo "$ns" | tr . /)"
-          mkdir -p "$dest"
-          find "$src/$(echo "$old" | tr . /)" -name '*.kt' -exec mv {} "$dest/" \;
-          # Rewrite package, imports and anything else naming the old package,
-          # including the R class the namespace change moved. perl rather than
-          # sed -i, which differs between GNU and BSD and so cannot be checked
-          # anywhere but the runner; \Q quotes the dots, \b keeps a longer
-          # package that merely starts with this one intact.
-          find "$dest" -name '*.kt' -exec perl -pi -e "s/\Q$old\E\b/$ns/g" {} +
-          rm -rf "${src:?}/io"
-          echo "Screenshot sources moved to $ns"
+          old_path=$(echo "$old" | tr . /)
+          new_path=$(echo "$ns" | tr . /)
+          # Both roots Gradle compiles for :app:testDebugUnitTest. androidTest has
+          # the same flaw but nothing in this pipeline builds it.
+          for src in app/src/screenshots/kotlin app/src/test/java; do
+            # apply-flavor-action may already have moved them; take whichever exists.
+            for from in "$src/$old_path" "$src/$new_path"; do
+              [ -d "$from" ] || continue
+              dest="$src/$new_path"
+              mkdir -p "$dest"
+              [ "$from" = "$dest" ] || find "$from" -name '*.kt' -exec mv {} "$dest/" \;
+              # Rewrite imports and anything else naming the old package, including
+              # the R class the namespace change moved. perl rather than sed -i,
+              # which differs between GNU and BSD and so cannot be checked anywhere
+              # but the runner; \Q quotes the dots, \b keeps a longer package that
+              # merely starts with this one intact.
+              find "$dest" -name '*.kt' -exec perl -pi -e "s/\Q$old\E\b/$ns/g" {} +
+            done
+            rm -rf "${src:?}/io"
+            echo "  $src -> $ns"
+          done
 
-      # After apply-flavor-action, so the images carry this client's branding:
-      # they are rendered from the app's own composables under its own theme.
+      # After apply-flavor-action, so the images carry this client's branding *and*
+      # its menu: they are rendered from the app's own composables, under its own
+      # theme, over the products :app:prepareMenuAssets just bundled.
       - name: Generate store screenshots
         run: ./gradlew :app:storeScreenshots --stacktrace
 

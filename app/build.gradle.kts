@@ -1,3 +1,7 @@
+import java.net.HttpURLConnection
+import java.net.URI
+import java.security.MessageDigest
+
 plugins {
     alias(libs.plugins.android.application)
     // Renders the store screenshots and feature graphic from the app's own
@@ -33,12 +37,6 @@ android {
         versionName = buildVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
-        // Firebase project that serves every white-label build's menu. All clients
-        // share one project; each reads its own tenant keyed by applicationId.
-        buildConfigField("String", "FIREBASE_PROJECT_ID", "\"flavorflow-digitalmenu\"")
-        // Optional Firebase Web API key; empty relies on public-read security rules.
-        buildConfigField("String", "FIRESTORE_API_KEY", "\"\"")
     }
 
     signingConfigs {
@@ -99,4 +97,134 @@ dependencies {
 storeScreenshots {
     // Fastlane's layout, so the same folder can feed an upload either way.
     destDir = layout.projectDirectory.dir("screenshots")
+}
+
+// ── The client's menu, bundled at build time ────────────────────────────────
+//
+// A client's menu is a JSON document uploaded to FlavorFlow as the `menu_json`
+// asset variable. In CI, apply-flavor-action downloads it and exports its path
+// as $MENU_JSON; a local build falls back to the checked-in `app/menu/menu.json`.
+//
+// The product photos are fetched here rather than at runtime, and packaged as
+// app assets. That is what makes the store screenshots show real food: they are
+// captured by a Robolectric unit test, which has neither a device nor a network,
+// so an https URL would only ever render the placeholder.
+abstract class PrepareMenuAssets : DefaultTask() {
+
+    /** The client's menu JSON — `$MENU_JSON` in CI, the checked-in default locally. */
+    @get:InputFile
+    abstract val source: RegularFileProperty
+
+    /** Receives `menu.json` plus a `menu/` directory of downloaded photos. */
+    @get:OutputDirectory
+    abstract val outputDir: DirectoryProperty
+
+    @TaskAction
+    fun prepare() {
+        val sourceFile = source.get().asFile
+        val parsed = try {
+            groovy.json.JsonSlurper().parse(sourceFile, "UTF-8")
+        } catch (e: Exception) {
+            throw GradleException("$sourceFile is not valid JSON: ${e.message}")
+        }
+
+        @Suppress("UNCHECKED_CAST")
+        val menu = parsed as? MutableMap<String, Any?>
+            ?: throw GradleException("$sourceFile must be a JSON object with `categories` and `products`.")
+
+        @Suppress("UNCHECKED_CAST")
+        val products = menu["products"] as? MutableList<Any?>
+        if (products.isNullOrEmpty()) {
+            throw GradleException("$sourceFile has no `products`. A build with an empty menu would ship a blank app.")
+        }
+        if ((menu["categories"] as? List<*>).isNullOrEmpty()) {
+            throw GradleException("$sourceFile has no `categories`. Products are grouped by category, so the menu would render empty.")
+        }
+
+        val out = outputDir.get().asFile
+        // Wiped rather than merged: a previous run's photos belong to whatever
+        // client was built then, and nothing in the new menu would overwrite them.
+        out.deleteRecursively()
+        val imagesDir = File(out, "menu").apply { mkdirs() }
+
+        // The restaurant's cover photo, bundled the same way as the dishes so the
+        // menu's header is painted from disk on first frame.
+        (menu["banner"] as? String)?.let { banner ->
+            if (banner.startsWith("http://") || banner.startsWith("https://")) {
+                download(banner, imagesDir)?.let { menu["banner"] = "file:///android_asset/menu/${it.name}" }
+            }
+        }
+
+        products.forEachIndexed { index, raw ->
+            @Suppress("UNCHECKED_CAST")
+            val product = raw as? MutableMap<String, Any?>
+                ?: throw GradleException("$sourceFile: products[$index] is not a JSON object.")
+            val url = product["imageUrl"] as? String ?: return@forEachIndexed
+            if (!url.startsWith("http://") && !url.startsWith("https://")) return@forEachIndexed
+            val downloaded = download(url, imagesDir) ?: return@forEachIndexed
+            product["imageUrl"] = "file:///android_asset/menu/${downloaded.name}"
+        }
+
+        File(out, "menu.json").writeText(
+            groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(menu)),
+            Charsets.UTF_8,
+        )
+        logger.lifecycle("Bundled ${products.size} products from $sourceFile, ${imagesDir.list()?.size ?: 0} photos.")
+    }
+
+    /**
+     * Fetches [url] into [dir], named after the URL's digest so the same photo
+     * used twice is stored once. Returns null — with a warning rather than a
+     * failure — when it cannot be fetched: an offline build should still produce
+     * an app, it just produces one with placeholders where the photos go.
+     */
+    private fun download(url: String, dir: File): File? = try {
+        val connection = (URI(url).toURL().openConnection() as HttpURLConnection).apply {
+            connectTimeout = 15_000
+            readTimeout = 30_000
+            setRequestProperty("Accept", "image/*")
+            // Some image hosts refuse the default Java user agent outright.
+            setRequestProperty("User-Agent", "FlavorFlow-DigitalMenu")
+        }
+        connection.inputStream.use { stream ->
+            val digest = MessageDigest.getInstance("SHA-1")
+                .digest(url.toByteArray())
+                .joinToString("") { "%02x".format(it) }
+            val target = File(dir, digest + extensionFor(url, connection.contentType))
+            target.outputStream().use { stream.copyTo(it) }
+            target
+        }
+    } catch (e: Exception) {
+        logger.warn("Could not fetch $url (${e.message}). That product keeps its remote URL, so its photo will be missing from the screenshots.")
+        null
+    }
+
+    /** The URL's own extension when it has a usable one, else the served type. */
+    private fun extensionFor(url: String, contentType: String?): String {
+        val fromPath = URI(url).path.substringAfterLast('.', "").lowercase()
+        if (fromPath in setOf("jpg", "jpeg", "png", "webp", "gif")) return ".$fromPath"
+        return when {
+            contentType == null -> ".jpg"
+            contentType.startsWith("image/png") -> ".png"
+            contentType.startsWith("image/webp") -> ".webp"
+            contentType.startsWith("image/gif") -> ".gif"
+            else -> ".jpg"
+        }
+    }
+}
+
+val prepareMenuAssets = tasks.register<PrepareMenuAssets>("prepareMenuAssets") {
+    description = "Bundles the client's menu JSON and its product photos as app assets."
+    source.set(
+        layout.file(providers.environmentVariable("MENU_JSON").map { File(it) })
+            .orElse(layout.projectDirectory.file("menu/menu.json"))
+    )
+}
+
+androidComponents {
+    onVariants { variant ->
+        // AGP owns the output location and the task dependency; every variant,
+        // including the unit test that captures the screenshots, sees the assets.
+        variant.sources.assets?.addGeneratedSourceDirectory(prepareMenuAssets, PrepareMenuAssets::outputDir)
+    }
 }

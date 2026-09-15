@@ -45,7 +45,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
@@ -58,7 +57,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
-import coil3.request.crossfade
 import io.flavorflow.demo.domain.model.CartItem
 import io.flavorflow.demo.domain.model.Product
 import io.flavorflow.demo.presentation.CheckoutUiState
@@ -219,13 +217,13 @@ private fun CartItemRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        val fallback = ColorPainter(MaterialTheme.colorScheme.surfaceVariant)
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
                 .data(item.product.imageUrl)
-                .crossfade(true)
                 .build(),
-            placeholder = ColorPainter(Color.LightGray),
-            error = ColorPainter(Color.LightGray),
+            placeholder = fallback,
+            error = fallback,
             contentDescription = item.product.name,
             modifier = Modifier
                 .size(60.dp)

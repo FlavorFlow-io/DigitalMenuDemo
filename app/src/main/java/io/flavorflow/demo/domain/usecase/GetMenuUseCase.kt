@@ -1,5 +1,6 @@
 package io.flavorflow.demo.domain.usecase
 
+import io.flavorflow.demo.domain.model.MenuContent
 import io.flavorflow.demo.domain.model.MenuSection
 import io.flavorflow.demo.domain.repository.MenuRepository
 
@@ -10,13 +11,16 @@ import io.flavorflow.demo.domain.repository.MenuRepository
 class GetMenuUseCase(
     private val repository: MenuRepository,
 ) {
-    suspend operator fun invoke(): List<MenuSection> {
+    suspend operator fun invoke(): MenuContent {
         val categories = repository.getCategories()
         val productsByCategory = repository.getProducts().groupBy { it.categoryId }
 
-        return categories.mapNotNull { category ->
-            val products = productsByCategory[category.id].orEmpty()
-            if (products.isEmpty()) null else MenuSection(category, products)
-        }
+        return MenuContent(
+            bannerImageUrl = repository.getBannerImageUrl(),
+            sections = categories.mapNotNull { category ->
+                val products = productsByCategory[category.id].orEmpty()
+                if (products.isEmpty()) null else MenuSection(category, products)
+            },
+        )
     }
 }

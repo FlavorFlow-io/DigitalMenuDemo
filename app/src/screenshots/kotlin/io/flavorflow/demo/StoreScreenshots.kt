@@ -6,24 +6,23 @@ import dev.lucianosantos.storescreenshots.FormFactor
 import dev.lucianosantos.storescreenshots.ScreenshotStyle
 import dev.lucianosantos.storescreenshots.StoreScreenshotsTest
 import io.flavorflow.demo.domain.model.CartItem
-import io.flavorflow.demo.domain.model.Category
-import io.flavorflow.demo.domain.model.MenuSection
-import io.flavorflow.demo.domain.model.Product
 import io.flavorflow.demo.presentation.CheckoutUiState
 import io.flavorflow.demo.presentation.MenuUiState
 import io.flavorflow.demo.presentation.PaymentMethod
 import io.flavorflow.demo.presentation.ui.CheckoutScreen
 import io.flavorflow.demo.presentation.ui.MenuScreen
 import io.flavorflow.demo.ui.theme.DigitalMenuTheme
+import org.junit.Before
 import org.junit.Test
 
 /**
  * The Play listing's phone screenshots, rendered from the app's own screens.
  *
  * Both screens take their state as a parameter, so nothing here needs a
- * ViewModel, Firestore, or a device — and because the images come from the real
- * composables under the real theme, a client's branding lands in the listing
- * without anyone redrawing anything.
+ * ViewModel or a device — and because the images come from the real composables
+ * under the real theme, over the menu this build was branded with, a client's
+ * branding *and* its dishes land in the listing without anyone redrawing
+ * anything.
  *
  * File names are numbered: Play orders screenshots by name.
  */
@@ -35,10 +34,14 @@ class StoreScreenshots : StoreScreenshotsTest(
 ) {
 
     /**
-     * The listing's languages. Each entry renders the whole set again, with the banner copy, the
-     * app's own chrome and the sample menu all resolved for that locale.
+     * The listing's languages. Each entry renders the whole set again, with the banner copy and
+     * the app's own chrome resolved for that locale. The dishes do not translate — they are the
+     * client's menu, in the language the client wrote it.
      */
     private val locales = listOf("en-US", "pt-BR")
+
+    @Before
+    fun useSynchronousImageLoader() = BundledMenu.installSynchronousImageLoader()
 
     @Test
     fun menu() = screenshot(
@@ -47,7 +50,7 @@ class StoreScreenshots : StoreScreenshotsTest(
         titleRes = R.string.screenshot_menu_title,
         descriptionRes = R.string.screenshot_menu_desc,
     ) {
-        DigitalMenuTheme { MenuScreen(uiState = sampleMenu()) }
+        DigitalMenuTheme { MenuScreen(uiState = bundledMenu()) }
     }
 
     @Test
@@ -57,8 +60,8 @@ class StoreScreenshots : StoreScreenshotsTest(
         titleRes = R.string.screenshot_cart_title,
         descriptionRes = R.string.screenshot_cart_desc,
     ) {
-        // Two items already in the cart: an empty basket makes a poor screenshot.
-        DigitalMenuTheme { MenuScreen(uiState = sampleMenu(cart = mapOf("p1" to 2, "p3" to 1))) }
+        // Items already in the cart: an empty basket makes a poor screenshot.
+        DigitalMenuTheme { MenuScreen(uiState = bundledMenu(cart = BundledMenu.sampleCart())) }
     }
 
     @Test
@@ -68,51 +71,34 @@ class StoreScreenshots : StoreScreenshotsTest(
         titleRes = R.string.screenshot_checkout_title,
         descriptionRes = R.string.screenshot_checkout_desc,
     ) {
-        DigitalMenuTheme { CheckoutScreen(uiState = sampleCheckout()) }
+        DigitalMenuTheme { CheckoutScreen(uiState = bundledCheckout()) }
     }
 }
 
-@Composable
-private fun sampleMenu(cart: Map<String, Int> = emptyMap()) = MenuUiState(
+private fun bundledMenu(cart: Map<String, Int> = emptyMap()) = MenuUiState(
     isLoading = false,
     cart = cart,
-    sections = listOf(
-        MenuSection(
-            category = Category(id = "c1", name = stringResource(R.string.sample_category_starters)),
-            products = listOf(
-                Product("p1", "Pão de alho", stringResource(R.string.sample_garlic_bread_desc), "", 12.0, "c1"),
-                Product("p2", "Coxinha", stringResource(R.string.sample_coxinha_desc), "", 9.5, "c1"),
-            ),
-        ),
-        MenuSection(
-            category = Category(id = "c2", name = stringResource(R.string.sample_category_mains)),
-            products = listOf(
-                Product("p3", "Feijoada", stringResource(R.string.sample_feijoada_desc), "", 46.0, "c2"),
-                Product("p4", "Moqueca", stringResource(R.string.sample_moqueca_desc), "", 52.0, "c2"),
-            ),
-        ),
-    ),
+    bannerImageUrl = BundledMenu.content.bannerImageUrl,
+    sections = BundledMenu.sections,
 )
 
+/** The same cart as `02_cart`, one screen further along. */
 @Composable
-private fun sampleCheckout() = CheckoutUiState(
-    items = listOf(
-        CartItem(
-            product = Product("p1", "Pão de alho", stringResource(R.string.sample_garlic_bread_desc), "", 12.0, "c1"),
-            quantity = 2,
+private fun bundledCheckout(): CheckoutUiState {
+    val cart = BundledMenu.sampleCart()
+    val products = BundledMenu.sections.flatMap { it.products }.associateBy { it.id }
+    return CheckoutUiState(
+        items = cart.mapNotNull { (id, quantity) ->
+            products[id]?.let { CartItem(product = it, quantity = quantity) }
+        },
+        paymentMethods = listOf(
+            PaymentMethod("pix", "Pix", stringResource(R.string.sample_payment_pix_desc)),
+            PaymentMethod(
+                "card",
+                stringResource(R.string.sample_payment_card),
+                stringResource(R.string.sample_payment_card_desc),
+            ),
         ),
-        CartItem(
-            product = Product("p3", "Feijoada", stringResource(R.string.sample_feijoada_desc), "", 46.0, "c2"),
-            quantity = 1,
-        ),
-    ),
-    paymentMethods = listOf(
-        PaymentMethod("pix", "Pix", stringResource(R.string.sample_payment_pix_desc)),
-        PaymentMethod(
-            "card",
-            stringResource(R.string.sample_payment_card),
-            stringResource(R.string.sample_payment_card_desc),
-        ),
-    ),
-    selectedPaymentId = "pix",
-)
+        selectedPaymentId = "pix",
+    )
+}

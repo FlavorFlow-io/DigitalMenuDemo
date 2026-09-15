@@ -47,14 +47,24 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.ColorPainter
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -64,7 +74,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
-import coil3.request.crossfade
 import io.flavorflow.demo.R
 import io.flavorflow.demo.domain.model.Category
 import io.flavorflow.demo.domain.model.MenuSection
@@ -88,11 +97,28 @@ fun MenuScreen(
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
-                    // The white-label app name; FlavorFlow rewrites app_name per client.
-                    Text(
-                        text = stringResource(R.string.app_name),
-                        fontWeight = FontWeight.Bold,
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        // The launcher icon, which apply-flavor-action rebuilds from the
+                        // client's logo — so the bar carries the brand with no second
+                        // asset to keep in sync. Through Coil, not painterResource:
+                        // on API 26+ ic_launcher resolves to an adaptive-icon XML,
+                        // which painterResource rejects outright. Clipped to a circle
+                        // because an adaptive icon draws its full 108dp bleed, and the
+                        // circle is the mask a launcher would apply anyway.
+                        AsyncImage(
+                            model = R.mipmap.ic_launcher,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape),
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        // The white-label app name; FlavorFlow rewrites app_name per client.
+                        Text(
+                            text = stringResource(R.string.app_name),
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     titleContentColor = MaterialTheme.colorScheme.primary,
@@ -131,6 +157,7 @@ fun MenuScreen(
                 }
 
                 else -> MenuContent(
+                    bannerImageUrl = uiState.bannerImageUrl,
                     sections = uiState.sections,
                     cart = uiState.cart,
                     onAddToCart = onAddToCart,
@@ -154,6 +181,7 @@ private sealed interface MenuGridItem {
 
 @Composable
 private fun MenuContent(
+    bannerImageUrl: String?,
     sections: List<MenuSection>,
     cart: Map<String, Int>,
     onAddToCart: (String) -> Unit,
@@ -189,13 +217,62 @@ private fun MenuContent(
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    // The banner gives up its height to the grid as the menu scrolls up, and takes
+    // it back only once the grid is already at the top — so it does not reappear
+    // mid-list, but a flick back to the start restores it.
+    val density = LocalDensity.current
+    val maxBannerPx = with(density) { BANNER_HEIGHT.toPx() }
+    var bannerHeightPx by remember { mutableFloatStateOf(maxBannerPx) }
+
+    val collapseOnScroll = remember(maxBannerPx) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                // Collapsing only. Expanding here would fight the grid for a
+                // downward drag that the grid still has room to consume.
+                if (available.y >= 0f) return Offset.Zero
+                return Offset(0f, consume(available.y))
+            }
+
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource,
+            ): Offset {
+                // Whatever the grid left over on a downward drag means it has hit
+                // the top, which is exactly when the banner should come back.
+                if (available.y <= 0f) return Offset.Zero
+                return Offset(0f, consume(available.y))
+            }
+
+            private fun consume(delta: Float): Float {
+                val next = (bannerHeightPx + delta).coerceIn(0f, maxBannerPx)
+                val taken = next - bannerHeightPx
+                bannerHeightPx = next
+                return taken
+            }
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxSize().nestedScroll(collapseOnScroll)) {
+        MenuBanner(
+            imageUrl = bannerImageUrl,
+            heightPx = bannerHeightPx,
+            maxHeightPx = maxBannerPx,
+        )
+
         SecondaryScrollableTabRow(selectedTabIndex = selectedTabIndex) {
             sections.forEachIndexed { index, section ->
                 Tab(
                     selected = index == selectedTabIndex,
                     onClick = {
                         scope.launch {
+                            // animateScrollToItem is a programmatic scroll and never
+                            // reaches the nested-scroll chain, so the banner has to be
+                            // told directly — otherwise jumping to a category leaves a
+                            // full-height banner over a list that is already deep in
+                            // the menu. Landing back on the first category is the one
+                            // case that returns to the top, banner and all.
+                            bannerHeightPx = if (index == 0) maxBannerPx else 0f
                             gridState.animateScrollToItem(headerIndices[index])
                         }
                     },
@@ -237,6 +314,50 @@ private fun MenuContent(
     }
 }
 
+/** How tall the banner stands before any scrolling collapses it. */
+private val BANNER_HEIGHT = 160.dp
+
+/** Lets the collapse test measure the banner without reaching into private state. */
+internal const val MENU_BANNER_TAG = "menuBanner"
+
+/**
+ * The restaurant's cover photo, sitting above the category tabs and shrinking to
+ * nothing as the menu scrolls — the tabs stay put, so a diner never loses the way
+ * between categories while browsing.
+ *
+ * [heightPx] is driven straight from the scroll rather than animated: the banner
+ * should track the finger, not lag behind it.
+ */
+@Composable
+private fun MenuBanner(imageUrl: String?, heightPx: Float, maxHeightPx: Float) {
+    if (heightPx <= 0f) return
+
+    val density = LocalDensity.current
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(with(density) { heightPx.toDp() })
+            .testTag(MENU_BANNER_TAG)
+            .clipToBounds()
+            .background(MaterialTheme.colorScheme.primaryContainer),
+    ) {
+        if (imageUrl != null) {
+            // Full height inside a shrinking, clipped box, so the photo is cropped
+            // on the way out rather than squashed.
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current).data(imageUrl).build(),
+                placeholder = ColorPainter(MaterialTheme.colorScheme.primaryContainer),
+                error = ColorPainter(MaterialTheme.colorScheme.primaryContainer),
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(with(density) { maxHeightPx.toDp() }),
+                contentScale = ContentScale.Crop,
+            )
+        }
+    }
+}
+
 @Composable
 private fun CategoryHeader(name: String) {
     Text(
@@ -263,13 +384,16 @@ private fun ProductCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
     ) {
         Column {
+            // No crossfade: the bytes are already in the APK, so the fade buys
+            // nothing on device and, in the Robolectric screenshot capture, is
+            // an animation that could be caught half-way.
+            val fallback = ColorPainter(MaterialTheme.colorScheme.surfaceVariant)
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
                     .data(product.imageUrl)
-                    .crossfade(true)
                     .build(),
-                placeholder = ColorPainter(Color.LightGray),
-                error = ColorPainter(Color.LightGray),
+                placeholder = fallback,
+                error = fallback,
                 contentDescription = product.name,
                 modifier = Modifier
                     .fillMaxWidth()
