@@ -33,23 +33,48 @@ data/          BundledMenuRepository ──▶ assets/menu.json  (bundled by :ap
 
 ```json
 {
+  "defaultLanguage": "pt-BR",
   "banner": "https://example.com/dining-room.jpg",
   "categories": [
-    { "id": "starters", "name": "Starters" },
-    { "id": "mains", "name": "Mains" }
+    { "id": "starters", "name": { "pt-BR": "Entradas", "en": "Starters" } },
+    { "id": "mains", "name": { "pt-BR": "Pratos principais", "en": "Mains" } }
   ],
   "products": [
     {
       "id": "p1",
       "categoryId": "starters",
-      "name": "Pão de alho",
-      "description": "Grilled garlic bread, house butter",
+      "name": { "pt-BR": "Pão de alho", "en": "Garlic bread" },
+      "description": {
+        "pt-BR": "Pão na brasa, manteiga da casa",
+        "en": "Grilled garlic bread, house butter"
+      },
       "price": 12.0,
       "imageUrl": "https://example.com/pao-de-alho.jpg"
     }
   ]
 }
 ```
+
+### Languages
+
+`name` and `description` are either a plain string — one language, the shape
+every menu had before — or an object keyed by language tag. Both parse, so a
+client who wrote a single language needs no migration.
+
+For a diner reading in `pt-BR`, a field resolves in this order:
+
+1. the exact tag, `pt-BR`
+2. the same language, however it is written in the document — `pt`, or `pt-PT`
+3. `defaultLanguage`, the language the menu was written in
+4. whatever the field does carry
+
+The last step is deliberate: a dish in the wrong language can still be ordered,
+where a blank one only looks broken. `defaultLanguage` is optional but worth
+setting — it decides what a diner sees when their language is missing.
+
+The same resolution runs for the Play listing screenshots, so a menu with
+translations produces one set of store art per language, each showing its own
+dishes.
 
 `banner` is the restaurant's cover photo. It sits above the category tabs and
 collapses as the menu scrolls, giving the grid the full screen once a diner is
@@ -64,9 +89,9 @@ A category with no products is dropped rather than rendered as an empty tab. A U
 that cannot be fetched is left alone, with a warning — the build still succeeds,
 that product just shows a placeholder.
 
-[`menu.sample.json`](menu.sample.json) at the repository root is a complete example
-— five categories, fifteen products, one of them deliberately without a photo or a
-description to show that both are optional.
+[`menu.sample.json`](menu.sample.json) at the repository root is a complete
+example — five categories and fifteen products in pt-BR and English, one of them
+deliberately without a photo or a description to show that both are optional.
 
 ### Where the document comes from — `$MENU_JSON`
 

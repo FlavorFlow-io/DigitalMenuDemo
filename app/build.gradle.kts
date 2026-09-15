@@ -183,8 +183,13 @@ abstract class PrepareMenuAssets : DefaultTask() {
             connectTimeout = 15_000
             readTimeout = 30_000
             setRequestProperty("Accept", "image/*")
-            // Some image hosts refuse the default Java user agent outright.
-            setRequestProperty("User-Agent", "FlavorFlow-DigitalMenu")
+            // Some image hosts refuse the default Java user agent outright, and
+            // Wikimedia's robot policy wants a contactable one — without the URL
+            // it answers a run of requests with 429 and the menu loses photos.
+            setRequestProperty(
+                "User-Agent",
+                "FlavorFlow-DigitalMenu/1.0 (+https://github.com/FlavorFlow-io/DigitalMenuDemo)"
+            )
         }
         connection.inputStream.use { stream ->
             val digest = MessageDigest.getInstance("SHA-1")

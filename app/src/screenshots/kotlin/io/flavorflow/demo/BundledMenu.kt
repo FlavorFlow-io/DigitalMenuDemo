@@ -9,6 +9,7 @@ import io.flavorflow.demo.domain.model.MenuSection
 import io.flavorflow.demo.domain.usecase.GetMenuUseCase
 import kotlinx.coroutines.runBlocking
 import org.robolectric.RuntimeEnvironment
+import java.util.Locale
 import kotlin.coroutines.EmptyCoroutineContext
 
 /**
@@ -22,11 +23,23 @@ import kotlin.coroutines.EmptyCoroutineContext
  */
 object BundledMenu {
 
-    /** Parsed once — the same document for every locale and every screenshot. */
-    val content: MenuContent by lazy {
-        val assets = RuntimeEnvironment.getApplication().assets
-        runBlocking { GetMenuUseCase(BundledMenuRepository(assets))() }
-    }
+    // One parse per language, not per screenshot: the capture renders the whole
+    // set again for each locale, and the dishes now translate with it.
+    private val perLocale = mutableMapOf<String, MenuContent>()
+
+    /** The locale the capture is currently rendering — its own, not the JVM's. */
+    private fun locale(): Locale =
+        RuntimeEnvironment.getApplication().resources.configuration.locales[0]
+
+    /** The bundled menu as the locale being captured reads it. */
+    val content: MenuContent
+        get() {
+            val current = locale()
+            return perLocale.getOrPut(current.toLanguageTag()) {
+                val assets = RuntimeEnvironment.getApplication().assets
+                runBlocking { GetMenuUseCase(BundledMenuRepository(assets) { current })() }
+            }
+        }
 
     val sections: List<MenuSection> get() = content.sections
 

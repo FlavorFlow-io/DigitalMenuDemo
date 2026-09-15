@@ -1,169 +1,293 @@
 {
+  "defaultLanguage": "en",
   "banner": "https://loremflickr.com/1200/600/restaurant,interior,dining?lock=20260910",
   "categories": [
     {
       "id": "burgers",
-      "name": "Burgers"
+      "name": {
+        "en": "Burgers",
+        "pt-BR": "Hambúrgueres"
+      }
     },
     {
       "id": "pizzas",
-      "name": "Pizzas"
+      "name": {
+        "en": "Pizzas",
+        "pt-BR": "Pizzas"
+      }
     },
     {
       "id": "salads",
-      "name": "Salads"
+      "name": {
+        "en": "Salads",
+        "pt-BR": "Saladas"
+      }
     },
     {
       "id": "drinks",
-      "name": "Drinks"
+      "name": {
+        "en": "Drinks",
+        "pt-BR": "Bebidas"
+      }
     },
     {
       "id": "desserts",
-      "name": "Desserts"
+      "name": {
+        "en": "Desserts",
+        "pt-BR": "Sobremesas"
+      }
     }
   ],
   "products": [
     {
       "id": "burgers-0",
       "categoryId": "burgers",
-      "name": "Classic Cheeseburger",
-      "description": "Beef patty, cheddar, lettuce, tomato",
+      "name": {
+        "en": "Classic Cheeseburger",
+        "pt-BR": "Cheeseburger clássico"
+      },
+      "description": {
+        "en": "Beef patty, cheddar, lettuce, tomato",
+        "pt-BR": "Hambúrguer de carne, cheddar, alface, tomate"
+      },
       "price": 16.0,
       "imageUrl": "https://loremflickr.com/400/300/classic,cheeseburger,food?lock=180007194"
     },
     {
       "id": "burgers-1",
       "categoryId": "burgers",
-      "name": "Bacon Deluxe",
-      "description": "Double bacon, smoked cheese, BBQ sauce",
+      "name": {
+        "en": "Bacon Deluxe",
+        "pt-BR": "Bacon Deluxe"
+      },
+      "description": {
+        "en": "Double bacon, smoked cheese, BBQ sauce",
+        "pt-BR": "Bacon duplo, queijo defumado, molho barbecue"
+      },
       "price": 19.0,
       "imageUrl": "https://loremflickr.com/400/300/bacon,deluxe,food?lock=3789266004"
     },
     {
       "id": "burgers-2",
       "categoryId": "burgers",
-      "name": "Veggie Burger",
-      "description": "Grilled mushroom, avocado, vegan mayo",
+      "name": {
+        "en": "Veggie Burger",
+        "pt-BR": "Hambúrguer vegetariano"
+      },
+      "description": {
+        "en": "Grilled mushroom, avocado, vegan mayo",
+        "pt-BR": "Cogumelo grelhado, abacate, maionese vegana"
+      },
       "price": 22.0,
       "imageUrl": "https://loremflickr.com/400/300/veggie,burger,food?lock=983595274"
     },
     {
       "id": "burgers-3",
       "categoryId": "burgers",
-      "name": "Spicy Chicken",
-      "description": "Crispy chicken, jalapeños, chipotle sauce",
+      "name": {
+        "en": "Spicy Chicken",
+        "pt-BR": "Frango picante"
+      },
+      "description": {
+        "en": "Crispy chicken, jalapeños, chipotle sauce",
+        "pt-BR": "Frango crocante, jalapeños, molho chipotle"
+      },
       "price": 25.0,
       "imageUrl": "https://loremflickr.com/400/300/spicy,chicken,food?lock=3700776567"
     },
     {
       "id": "pizzas-0",
       "categoryId": "pizzas",
-      "name": "Margherita",
-      "description": "Tomato, mozzarella, fresh basil",
+      "name": {
+        "en": "Margherita",
+        "pt-BR": "Margherita"
+      },
+      "description": {
+        "en": "Tomato, mozzarella, fresh basil",
+        "pt-BR": "Tomate, mussarela, manjericão fresco"
+      },
       "price": 15.0,
       "imageUrl": "https://loremflickr.com/400/300/margherita,food?lock=3928594826"
     },
     {
       "id": "pizzas-1",
       "categoryId": "pizzas",
-      "name": "Pepperoni",
-      "description": "Pepperoni, mozzarella, oregano",
+      "name": {
+        "en": "Pepperoni",
+        "pt-BR": "Pepperoni"
+      },
+      "description": {
+        "en": "Pepperoni, mozzarella, oregano",
+        "pt-BR": "Pepperoni, mussarela, orégano"
+      },
       "price": 18.0,
       "imageUrl": "https://loremflickr.com/400/300/pepperoni,food?lock=987159784"
     },
     {
       "id": "pizzas-2",
       "categoryId": "pizzas",
-      "name": "Four Cheese",
-      "description": "Mozzarella, gorgonzola, parmesan, brie",
+      "name": {
+        "en": "Four Cheese",
+        "pt-BR": "Quatro queijos"
+      },
+      "description": {
+        "en": "Mozzarella, gorgonzola, parmesan, brie",
+        "pt-BR": "Mussarela, gorgonzola, parmesão, brie"
+      },
       "price": 21.0,
       "imageUrl": "https://loremflickr.com/400/300/four,cheese,food?lock=3170024721"
     },
     {
       "id": "pizzas-3",
       "categoryId": "pizzas",
-      "name": "Veggie Supreme",
-      "description": "Peppers, onions, olives, mushrooms",
+      "name": {
+        "en": "Veggie Supreme",
+        "pt-BR": "Vegetariana suprema"
+      },
+      "description": {
+        "en": "Peppers, onions, olives, mushrooms",
+        "pt-BR": "Pimentões, cebola, azeitonas, cogumelos"
+      },
       "price": 24.0,
       "imageUrl": "https://loremflickr.com/400/300/veggie,supreme,food?lock=2627823716"
     },
     {
       "id": "salads-0",
       "categoryId": "salads",
-      "name": "Caesar Salad",
-      "description": "Romaine, croutons, parmesan, Caesar dressing",
+      "name": {
+        "en": "Caesar Salad",
+        "pt-BR": "Salada Caesar"
+      },
+      "description": {
+        "en": "Romaine, croutons, parmesan, Caesar dressing",
+        "pt-BR": "Alface-romana, croutons, parmesão, molho Caesar"
+      },
       "price": 15.0,
       "imageUrl": "https://loremflickr.com/400/300/caesar,salad,food?lock=2416988510"
     },
     {
       "id": "salads-1",
       "categoryId": "salads",
-      "name": "Greek Salad",
-      "description": "Cucumber, tomato, feta, olives",
+      "name": {
+        "en": "Greek Salad",
+        "pt-BR": "Salada grega"
+      },
+      "description": {
+        "en": "Cucumber, tomato, feta, olives",
+        "pt-BR": "Pepino, tomate, queijo feta, azeitonas"
+      },
       "price": 18.0,
       "imageUrl": "https://loremflickr.com/400/300/greek,salad,food?lock=3868042017"
     },
     {
       "id": "salads-2",
       "categoryId": "salads",
-      "name": "Quinoa Bowl",
-      "description": "Quinoa, chickpeas, avocado, lemon dressing",
+      "name": {
+        "en": "Quinoa Bowl",
+        "pt-BR": "Bowl de quinoa"
+      },
+      "description": {
+        "en": "Quinoa, chickpeas, avocado, lemon dressing",
+        "pt-BR": "Quinoa, grão-de-bico, abacate, molho de limão"
+      },
       "price": 21.0,
       "imageUrl": "https://loremflickr.com/400/300/quinoa,bowl,food?lock=3422320391"
     },
     {
       "id": "drinks-0",
       "categoryId": "drinks",
-      "name": "Fresh Lemonade",
-      "description": "Squeezed lemons, mint, sparkling water",
+      "name": {
+        "en": "Fresh Lemonade",
+        "pt-BR": "Limonada fresca"
+      },
+      "description": {
+        "en": "Squeezed lemons, mint, sparkling water",
+        "pt-BR": "Limões espremidos, hortelã, água com gás"
+      },
       "price": 15.0,
       "imageUrl": "https://loremflickr.com/400/300/fresh,lemonade,food?lock=556990401"
     },
     {
       "id": "drinks-1",
       "categoryId": "drinks",
-      "name": "Iced Coffee",
-      "description": "Cold brew, milk, ice",
+      "name": {
+        "en": "Iced Coffee",
+        "pt-BR": "Café gelado"
+      },
+      "description": {
+        "en": "Cold brew, milk, ice",
+        "pt-BR": "Cold brew, leite, gelo"
+      },
       "price": 18.0,
       "imageUrl": "https://loremflickr.com/400/300/iced,coffee,food?lock=368787091"
     },
     {
       "id": "drinks-2",
       "categoryId": "drinks",
-      "name": "Orange Juice",
-      "description": "100% freshly squeezed oranges",
+      "name": {
+        "en": "Orange Juice",
+        "pt-BR": "Suco de laranja"
+      },
+      "description": {
+        "en": "100% freshly squeezed oranges",
+        "pt-BR": "Laranjas 100% espremidas na hora"
+      },
       "price": 21.0,
       "imageUrl": "https://loremflickr.com/400/300/orange,juice,food?lock=3627566318"
     },
     {
       "id": "drinks-3",
       "categoryId": "drinks",
-      "name": "Craft Soda",
-      "description": "Artisanal cola with cane sugar",
+      "name": {
+        "en": "Craft Soda",
+        "pt-BR": "Refrigerante artesanal"
+      },
+      "description": {
+        "en": "Artisanal cola with cane sugar",
+        "pt-BR": "Cola artesanal com açúcar de cana"
+      },
       "price": 24.0,
       "imageUrl": "https://loremflickr.com/400/300/cola,drink,food?lock=765208089"
     },
     {
       "id": "desserts-0",
       "categoryId": "desserts",
-      "name": "Chocolate Brownie",
-      "description": "Warm brownie, vanilla ice cream",
+      "name": {
+        "en": "Chocolate Brownie",
+        "pt-BR": "Brownie de chocolate"
+      },
+      "description": {
+        "en": "Warm brownie, vanilla ice cream",
+        "pt-BR": "Brownie quente, sorvete de creme"
+      },
       "price": 17.0,
       "imageUrl": "https://loremflickr.com/400/300/chocolate,brownie,food?lock=3148673710"
     },
     {
       "id": "desserts-1",
       "categoryId": "desserts",
-      "name": "Cheesecake",
-      "description": "New York style, berry compote",
+      "name": {
+        "en": "Cheesecake",
+        "pt-BR": "Cheesecake"
+      },
+      "description": {
+        "en": "New York style, berry compote",
+        "pt-BR": "Estilo Nova York, calda de frutas vermelhas"
+      },
       "price": 20.0,
       "imageUrl": "https://loremflickr.com/400/300/cheesecake,food?lock=3484211119"
     },
     {
       "id": "desserts-2",
       "categoryId": "desserts",
-      "name": "Tiramisu",
-      "description": "Espresso-soaked ladyfingers, mascarpone",
+      "name": {
+        "en": "Tiramisu",
+        "pt-BR": "Tiramisù"
+      },
+      "description": {
+        "en": "Espresso-soaked ladyfingers, mascarpone",
+        "pt-BR": "Biscoitos champagne com espresso, mascarpone"
+      },
       "price": 23.0,
       "imageUrl": "https://loremflickr.com/400/300/tiramisu,food?lock=2422442626"
     }

@@ -1,145 +1,248 @@
 {
-  "banner": "https://loremflickr.com/1200/600/bistro,interior,dining?lock=10010",
+  "defaultLanguage": "pt-BR",
+  "banner": "https://images.unsplash.com/photo-1709548145082-04d0cde481d4?w=1600&q=80",
   "categories": [
     {
       "id": "starters",
-      "name": "Starters"
+      "name": {
+        "pt-BR": "Entradas",
+        "en": "Starters"
+      }
     },
     {
       "id": "mains",
-      "name": "Mains"
+      "name": {
+        "pt-BR": "Pratos principais",
+        "en": "Mains"
+      }
     },
     {
       "id": "sides",
-      "name": "Sides"
+      "name": {
+        "pt-BR": "Acompanhamentos",
+        "en": "Sides"
+      }
     },
     {
       "id": "drinks",
-      "name": "Drinks"
+      "name": {
+        "pt-BR": "Bebidas",
+        "en": "Drinks"
+      }
     },
     {
       "id": "desserts",
-      "name": "Desserts"
+      "name": {
+        "pt-BR": "Sobremesas",
+        "en": "Desserts"
+      }
     }
   ],
   "products": [
     {
       "id": "starters-1",
       "categoryId": "starters",
-      "name": "Pão de alho",
-      "description": "Grilled garlic bread, house butter",
+      "name": {
+        "pt-BR": "Pão de alho",
+        "en": "Garlic bread"
+      },
+      "description": {
+        "pt-BR": "Pão na brasa, manteiga da casa",
+        "en": "Grilled garlic bread, house butter"
+      },
       "price": 12.0,
-      "imageUrl": "https://loremflickr.com/400/300/garlic,bread,food?lock=10011"
+      "imageUrl": "https://images.unsplash.com/photo-1556008531-57e6eefc7be4?w=1200&q=80"
     },
     {
       "id": "starters-2",
       "categoryId": "starters",
-      "name": "Bolinho de bacalhau",
-      "description": "Six cod fritters, lemon aioli",
+      "name": {
+        "pt-BR": "Bolinho de bacalhau",
+        "en": "Salt cod fritters"
+      },
+      "description": {
+        "pt-BR": "Seis bolinhos, aioli de limão",
+        "en": "Six cod fritters, lemon aioli"
+      },
       "price": 28.5,
-      "imageUrl": "https://loremflickr.com/400/300/cod,fritters,food?lock=10012"
+      "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/09/Bolinho_de_bacalhau_da_vov%C3%B3_%2816079982696%29.jpg/1280px-Bolinho_de_bacalhau_da_vov%C3%B3_%2816079982696%29.jpg"
     },
     {
       "id": "starters-3",
       "categoryId": "starters",
-      "name": "Caldinho de feijão",
-      "description": "Black bean broth, crisp pancetta",
+      "name": {
+        "pt-BR": "Caldinho de feijão",
+        "en": "Black bean broth"
+      },
+      "description": {
+        "pt-BR": "Caldo de feijão preto, pancetta crocante",
+        "en": "Black bean broth, crisp pancetta"
+      },
       "price": 16.0,
-      "imageUrl": "https://loremflickr.com/400/300/bean,soup,food?lock=10013"
+      "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Black_Bean_Soup_Cup_Ruby_Slipper_NOLA.JPG/1280px-Black_Bean_Soup_Cup_Ruby_Slipper_NOLA.JPG"
     },
     {
       "id": "mains-1",
       "categoryId": "mains",
-      "name": "Picanha na chapa",
-      "description": "Sirloin cap, farofa, vinaigrette",
+      "name": {
+        "pt-BR": "Picanha na chapa",
+        "en": "Grilled picanha"
+      },
+      "description": {
+        "pt-BR": "Picanha, farofa, vinagrete",
+        "en": "Sirloin cap, farofa, vinaigrette"
+      },
       "price": 89.0,
-      "imageUrl": "https://loremflickr.com/400/300/steak,grilled,food?lock=10014"
+      "imageUrl": "https://images.unsplash.com/photo-1529692236671-f1f6cf9683ba?w=1200&q=80"
     },
     {
       "id": "mains-2",
       "categoryId": "mains",
-      "name": "Moqueca de camarão",
-      "description": "Shrimp, coconut milk, dendê oil, rice",
+      "name": {
+        "pt-BR": "Moqueca de camarão",
+        "en": "Shrimp moqueca"
+      },
+      "description": {
+        "pt-BR": "Camarão, leite de coco, azeite de dendê, arroz",
+        "en": "Shrimp, coconut milk, dendê oil, rice"
+      },
       "price": 78.0,
-      "imageUrl": "https://loremflickr.com/400/300/shrimp,curry,food?lock=10015"
+      "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Moqueca.jpg/1280px-Moqueca.jpg"
     },
     {
       "id": "mains-3",
       "categoryId": "mains",
-      "name": "Frango com quiabo",
-      "description": "Braised chicken, okra, polenta",
+      "name": {
+        "pt-BR": "Frango com quiabo",
+        "en": "Chicken with okra"
+      },
+      "description": {
+        "pt-BR": "Frango cozido, quiabo, polenta",
+        "en": "Braised chicken, okra, polenta"
+      },
       "price": 54.0,
-      "imageUrl": "https://loremflickr.com/400/300/braised,chicken,food?lock=10016"
+      "imageUrl": "https://images.unsplash.com/photo-1583549322901-9edf5dad0cc4?w=1200&q=80"
     },
     {
       "id": "mains-4",
       "categoryId": "mains",
-      "name": "Risoto de palmito",
-      "description": "Heart of palm, parmesan, brown butter",
+      "name": {
+        "pt-BR": "Risoto de palmito",
+        "en": "Heart of palm risotto"
+      },
+      "description": {
+        "pt-BR": "Palmito, parmesão, manteiga tostada",
+        "en": "Heart of palm, parmesan, brown butter"
+      },
       "price": 62.0,
-      "imageUrl": "https://loremflickr.com/400/300/risotto,rice,food?lock=10017"
+      "imageUrl": "https://images.unsplash.com/photo-1476124369491-e7addf5db371?w=1200&q=80"
     },
     {
       "id": "sides-1",
       "categoryId": "sides",
-      "name": "Arroz de brócolis",
-      "description": "Garlic rice, broccoli",
+      "name": {
+        "pt-BR": "Arroz de brócolis",
+        "en": "Broccoli rice"
+      },
+      "description": {
+        "pt-BR": "Arroz de alho, brócolis",
+        "en": "Garlic rice, broccoli"
+      },
       "price": 18.0,
-      "imageUrl": "https://loremflickr.com/400/300/rice,broccoli,food?lock=10018"
+      "imageUrl": "https://images.unsplash.com/photo-1587995631109-2a8588e991da?w=1200&q=80"
     },
     {
       "id": "sides-2",
       "categoryId": "sides",
-      "name": "Batata rústica",
-      "description": "Rosemary potatoes, sea salt",
+      "name": {
+        "pt-BR": "Batata rústica",
+        "en": "Rustic potatoes"
+      },
+      "description": {
+        "pt-BR": "Batatas ao alecrim, sal marinho",
+        "en": "Rosemary potatoes, sea salt"
+      },
       "price": 22.0,
-      "imageUrl": "https://loremflickr.com/400/300/roast,potatoes,food?lock=10019"
+      "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Roasted_Potato_Wedges_with_Shallots_and_Rosemary_%285706897999%29.jpg/1280px-Roasted_Potato_Wedges_with_Shallots_and_Rosemary_%285706897999%29.jpg"
     },
     {
       "id": "sides-3",
       "categoryId": "sides",
-      "name": "Couve refogada",
+      "name": {
+        "pt-BR": "Couve refogada",
+        "en": "Sautéed collard greens"
+      },
       "price": 14.0
     },
     {
       "id": "drinks-1",
       "categoryId": "drinks",
-      "name": "Caipirinha",
-      "description": "Cachaça, lime, sugar",
+      "name": {
+        "pt-BR": "Caipirinha",
+        "en": "Caipirinha"
+      },
+      "description": {
+        "pt-BR": "Cachaça, limão, açúcar",
+        "en": "Cachaça, lime, sugar"
+      },
       "price": 26.0,
-      "imageUrl": "https://loremflickr.com/400/300/caipirinha,cocktail?lock=10020"
+      "imageUrl": "https://images.unsplash.com/photo-1588291258158-f77d640d56b5?w=1200&q=80"
     },
     {
       "id": "drinks-2",
       "categoryId": "drinks",
-      "name": "Suco de maracujá",
-      "description": "Fresh passion fruit juice",
+      "name": {
+        "pt-BR": "Suco de maracujá",
+        "en": "Passion fruit juice"
+      },
+      "description": {
+        "pt-BR": "Suco de maracujá fresco",
+        "en": "Fresh passion fruit juice"
+      },
       "price": 14.0,
-      "imageUrl": "https://loremflickr.com/400/300/passion,fruit,juice?lock=10021"
+      "imageUrl": "https://images.unsplash.com/photo-1664993119473-013502f1e3f8?w=1200&q=80"
     },
     {
       "id": "drinks-3",
       "categoryId": "drinks",
-      "name": "Água com gás",
-      "description": "500 ml",
+      "name": {
+        "pt-BR": "Água com gás",
+        "en": "Sparkling water"
+      },
+      "description": {
+        "pt-BR": "500 ml",
+        "en": "500 ml"
+      },
       "price": 8.0,
-      "imageUrl": "https://loremflickr.com/400/300/sparkling,water,glass?lock=10022"
+      "imageUrl": "https://images.unsplash.com/photo-1551753103-f121bd83be46?w=1200&q=80"
     },
     {
       "id": "desserts-1",
       "categoryId": "desserts",
-      "name": "Pudim de leite",
-      "description": "Condensed milk flan, burnt caramel",
+      "name": {
+        "pt-BR": "Pudim de leite",
+        "en": "Condensed milk flan"
+      },
+      "description": {
+        "pt-BR": "Pudim de leite condensado, caramelo queimado",
+        "en": "Condensed milk flan, burnt caramel"
+      },
       "price": 24.0,
-      "imageUrl": "https://loremflickr.com/400/300/flan,caramel,dessert?lock=10023"
+      "imageUrl": "https://images.unsplash.com/photo-1702728109878-c61a98d80491?w=1200&q=80"
     },
     {
       "id": "desserts-2",
       "categoryId": "desserts",
-      "name": "Brigadeirão",
-      "description": "Baked chocolate fudge, cocoa nibs",
+      "name": {
+        "pt-BR": "Brigadeirão",
+        "en": "Baked brigadeiro"
+      },
+      "description": {
+        "pt-BR": "Brigadeiro de forno, nibs de cacau",
+        "en": "Baked chocolate fudge, cocoa nibs"
+      },
       "price": 26.0,
-      "imageUrl": "https://loremflickr.com/400/300/chocolate,fudge,dessert?lock=10024"
+      "imageUrl": "https://images.unsplash.com/photo-1702982852429-e0d0b27eb990?w=1200&q=80"
     }
   ]
 }

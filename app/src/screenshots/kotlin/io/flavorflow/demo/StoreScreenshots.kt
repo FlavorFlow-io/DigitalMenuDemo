@@ -34,9 +34,9 @@ class StoreScreenshots : StoreScreenshotsTest(
 ) {
 
     /**
-     * The listing's languages. Each entry renders the whole set again, with the banner copy and
-     * the app's own chrome resolved for that locale. The dishes do not translate — they are the
-     * client's menu, in the language the client wrote it.
+     * The listing's languages. Each entry renders the whole set again, with the app's own chrome
+     * and the dishes themselves resolved for that locale — a menu that carries translations gets
+     * a listing in each, and one written in a single language reads the same in both.
      */
     private val locales = listOf("en-US", "pt-BR")
 
