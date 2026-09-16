@@ -1,7 +1,7 @@
 # Digital Menu — a FlavorFlow white-label showcase
 
 A single Jetpack Compose food-ordering app that is **re-branded per client at build
-time** with [FlavorFlow](https://flavor-flow.io) — theme, name, package, icon *and*
+time** with [FlavorFlow](https://flavorflow.io) — theme, name, package, icon *and*
 the restaurant's own menu. One codebase → many branded apps, each shipping its own
 dishes, photos and prices.
 
@@ -131,7 +131,7 @@ MENU_JSON=$PWD/menu.sample.json ./gradlew :app:storeScreenshots
 MENU_JSON=/path/to/that-client.json ./gradlew assembleDebug
 ```
 
-**Produce white-label builds:** create a project on [flavor-flow.io](https://flavor-flow.io),
+**Produce white-label builds:** create a project on [flavorflow.io](https://flavorflow.io),
 declare a **mandatory** project variable `menu_json` of type **Asset**, add a client per
 brand and upload each one's menu, set repo secrets `TEST_API_KEY` / `TEST_PROJECT_ID`,
 and push to `main`. CI builds one APK per client.
@@ -139,3 +139,16 @@ and push to `main`. CI builds one APK per client.
 > Asset variables are an Enterprise plan feature — see the pricing page.
 
 Reference wiring: [FlavorFlow-io/android-jetpack-compose-sample](https://github.com/FlavorFlow-io/android-jetpack-compose-sample).
+
+## Privacy policy
+
+Google Play requires a reachable privacy policy URL on every listing, including
+each branded build of this app. The policy is
+[`PRIVACY_POLICY.md`](PRIVACY_POLICY.md) here, published at
+<https://flavorflow.io/digital-menu/privacy-policy> — that is the URL to enter
+under **App content → Privacy policy** in the Play Console.
+
+It says the app collects nothing, which is what the code does: no accounts, no
+analytics SDK, no persistence, and `INTERNET` only as the fallback for a dish
+photo the build could not package. Change any of that and the policy has to
+change with it, in both the markdown and the published page.
