@@ -29,12 +29,13 @@ run-name: >-
 on:
   # FlavorFlow dispatches this when a client is added to the bound project.
   # Every input it sends must be declared or GitHub rejects the dispatch with
-  # 422 "Unexpected inputs provided", so these eight mirror workflowInputs() in
-  # the FlavorFlow backend exactly. All are optional so a plain "Run workflow"
-  # still works.
+  # 422 "Unexpected inputs provided", so the first nine here mirror what
+  # FlavorFlow sends, exactly. All are optional so a plain "Run workflow" still
+  # works.
   #
-  # Ten is the hard cap on dispatch inputs, and these ten use it up. Anything
-  # further belongs to release-white-label-update.yml, which has its own.
+  # Ten is the hard cap on dispatch inputs. Nine are spoken for, leaving one —
+  # spent here on play_app_id, which is this workflow's own. Anything further
+  # belongs to release-white-label-update.yml, which has its own ten.
   workflow_dispatch:
     inputs:
       event:
