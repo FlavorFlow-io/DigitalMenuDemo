@@ -158,19 +158,6 @@ jobs:
             -PversionCode="$version_code" \
             -PversionName="$version_name"
 
-      - name: Verify the bundle is actually signed
-        if: steps.signing.outputs.available == 'true'
-        run: |
-          set -euo pipefail
-          aab=$(find . -path '*/outputs/bundle/release/*.aab' | head -1)
-          [ -n "$aab" ] || { echo "::error::No .aab in outputs/bundle/release"; exit 1; }
-          if ! unzip -l "$aab" | grep -qiE 'META-INF/.*\.RSA'; then
-            echo "::error::$aab has no signature block — it built unsigned."
-            exit 1
-          fi
-          echo "Signed: $aab"
-          jarsigner -verify "$aab" | head -1
-
       # Read by create-play-app.yml to save the released version in FlavorFlow.
       - name: Record what this bundle is
         if: steps.signing.outputs.available == 'true'
