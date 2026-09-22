@@ -1,92 +1,53 @@
-# Brings a brand-new client into Google Play: builds it, creates the app,
-# fills every form, and gets its first release out to internal testing.
+# Publishes a new FlavorFlow client to Google Play for the first time: builds
+# it, creates the Play app, fills its forms and releases it to internal testing.
+# Later releases go through release-white-label-update.yml.
 #
-# This is the entry point FlavorFlow dispatches `client.added` to, and the half
-# of publishing that cannot go through the API — Google refuses the first
-# artifact of a new app, so the first release drives a real browser on a
-# self-hosted runner against a signed-in Google session. It can block waiting
-# for someone to sign in, which is why it is separate from the build it calls.
+# FlavorFlow runs this when a client is added to the project. Answers (testers,
+# categories, countries…) are edited in the FlavorFlow app, not here.
 #
-# Once this has run for a client, that package is published and
-# release-white-label-update.yml handles every release after it.
-#
-# The developer account is read off the signed-in session and remembered, so
-# there is nothing to configure for it. Tester lists, categories and every
-# other answer come from the project's saved answers, edited in the FlavorFlow
-# app rather than here.
-#
-# Setup (Settings → Secrets and variables → Actions):
-#   Secret   TEST_API_KEY     = FlavorFlow project API key
-#   Variable TEST_PROJECT_ID  = FlavorFlow project id
+# Needs the secret TEST_API_KEY: a FlavorFlow project API key with write access.
 name: Create Play App
 
-# Every run of a workflow carries the workflow's name, so a list of them says
-# nothing about which client each was for. This is what the app matches a run
-# to a client with, and what makes the run list legible in GitHub too.
+# FlavorFlow matches runs to clients by this name.
 run-name: >-
   ${{ inputs.client_id && format('{0} ({1})', inputs.client_name || 'client', inputs.client_id)
    || 'Create Play App' }}
+
 on:
-  # FlavorFlow dispatches this when a client is added to the bound project.
-  # Every input it sends must be declared or GitHub rejects the dispatch with
-  # 422 "Unexpected inputs provided", so the first nine here mirror what
-  # FlavorFlow sends, exactly. All are optional so a plain "Run workflow" still
-  # works.
-  #
-  # Ten is the hard cap on dispatch inputs. Nine are spoken for, leaving one —
-  # spent here on play_app_id, which is this workflow's own. Anything further
-  # belongs to release-white-label-update.yml, which has its own ten.
   workflow_dispatch:
+    # FlavorFlow sends all of these, so all must be declared.
     inputs:
       event:
         description: 'FlavorFlow event name (e.g. client.added)'
         required: false
-        default: ''
       project_id:
         description: 'FlavorFlow project id'
         required: false
-        default: ''
       project_name:
         description: 'FlavorFlow project name'
         required: false
-        default: ''
       client_id:
-        description: 'Client id — the client to create an app for'
+        description: 'FlavorFlow client id'
         required: false
-        default: ''
       client_name:
         description: 'Client name'
         required: false
-        default: ''
       app_name:
-        description: 'App name for the client'
+        description: 'App name'
         required: false
-        default: ''
       package_name:
-        description: 'Application id / package name for the client'
+        description: 'Package name'
         required: false
-        default: ''
       payload:
         description: 'Full event as JSON'
         required: false
-        default: ''
       publish_to_production:
-        description: >-
-          Also promote this first release to production. Off by default: it is
-          public and it is not reversible. The countries it ships to come from
-          the project's saved answers, not from here.
+        description: 'Also publish to production (public, cannot be undone)'
         type: boolean
         required: false
         default: false
-      play_app_id:
-        description: >-
-          Existing Play app id. Set it to resume against an app a previous run
-          created, so creation is skipped instead of failing on the name.
-        required: false
-        default: ''
 
 jobs:
-  # The same build every other path uses, called rather than duplicated.
   build:
     name: Build
     if: inputs.client_id != ''
@@ -96,31 +57,15 @@ jobs:
       client_name: ${{ inputs.client_name }}
     secrets: inherit
 
-  create:
-    # client_name is optional on dispatch — the action resolves the real name
-    # from the API — and a job named from it alone came out as "First release
-    # for ''". These names are read before any step runs, so the dispatched id
-    # is the only thing left to fall back to.
-    # needs.build resolves before this is read, so the client's real name is
-    # available even when the dispatch did not carry one — which is how this
-    # came out as "First release for ''" and then as a bare id.
+  first_release:
     name: >-
       First release for ${{ needs.build.outputs.client_name || inputs.client_name
-       || inputs.client_id || 'a new client' }} (console)
+       || inputs.client_id || 'a new client' }}
     needs: build
-    if: inputs.client_id != ''
-    # A real desktop browser against a signed-in Google session, which a
-    # GitHub-hosted runner can be neither of.
+    # Drives a real browser signed in to Play Console.
     runs-on: [self-hosted, macOS]
-    # There is one of these runners, so a step that hangs blocks every client
-    # behind it. A run that has not finished in forty minutes is stuck: a step
-    # once spun for three hours and twenty minutes and stopped only when Chrome
-    # died. The sign-in wait is the longest legitimate part and has its own
-    # thirty-minute limit inside the action.
+    # There is only one such runner; don't let a stuck run block the others.
     timeout-minutes: 40
-    outputs:
-      app_id: ${{ steps.play.outputs.app-id }}
-      created: ${{ steps.play.outputs.created }}
     steps:
       - uses: actions/checkout@v5
 
@@ -131,264 +76,148 @@ jobs:
           merge-multiple: true
           path: bundle
 
-      # The build renders these from the client's own UI, but nothing passed
-      # them to the listing form — so the text filled and the icon, feature
-      # graphic and screenshots stayed empty, which Play reports as "Upload an
-      # icon" and refuses to publish a listing without.
-      - name: Download the listing assets
+      - name: Download the store listing images
         uses: actions/download-artifact@v7
         with:
           pattern: listing-*
           merge-multiple: true
           path: listing
 
-      - name: Locate the bundle and the listing assets
-        id: aab
+      # One `key=path` line per file. Translations get a `@locale` suffix,
+      # e.g. `phone_screenshots@pt-BR`.
+      - name: List the files to upload
+        id: upload_files
         run: |
           set -euo pipefail
-          aab=$(find bundle -name '*.aab' | head -1)
-          if [ -z "$aab" ]; then
-            echo "::error::No .aab was produced — the build skips the bundle when signing secrets are missing."
+          default_locale=en-US
+          listing_dir=$(cd listing 2>/dev/null && pwd || echo /nonexistent)
+
+          bundle=$(find bundle -name '*.aab' | head -1)
+          if [ -z "$bundle" ]; then
+            echo "::error::No .aab was built. Are the signing secrets set?"
             exit 1
           fi
-          ls -lh "$aab"
+          files="aab=$(cd "$(dirname "$bundle")" && pwd)/$(basename "$bundle")"$'\n'
+          add() { files="${files}$1=$2"$'\n'; }
 
-          # Absolute paths: the runner reads these from disk while driving the
-          # console, from whatever directory it happens to be in.
-          root=$(cd listing 2>/dev/null && pwd || true)
-          # The build renders one set of images per listing language. The params
-          # follow that: a bare key answers the default listing, `key@pt-BR`
-          # answers that translation. Collected per directory, because one find
-          # across all of them put the Portuguese screenshots on the English
-          # listing — six images for a slot that takes eight, and no way to tell
-          # from the run that it had happened.
-          default_locale=en-US
-          params="aab=$(cd "$(dirname "$aab")" && pwd)/$(basename "$aab")"$'\n'
-          add() { params="${params}$1=$2"$'\n'; }
-
-          # The icon is the app's, not a listing's: Play takes one for all
-          # languages, so it is only read from the default.
-          icon="${root:-/nonexistent}/$default_locale/images/icon.png"
+          icon="$listing_dir/$default_locale/images/icon.png"
           if [ -f "$icon" ]; then
             add app_icon "$icon"
           else
-            echo "::warning::No icon asset — the store listing cannot be completed."
+            echo "::warning::No app icon found."
           fi
 
-          for dir in "${root:-/nonexistent}"/*/; do
-            [ -d "$dir" ] || continue
-            loc=$(basename "$dir")
+          for locale_dir in "$listing_dir"/*/; do
+            [ -d "$locale_dir" ] || continue
+            locale=$(basename "$locale_dir")
             suffix=""
-            [ "$loc" = "$default_locale" ] || suffix="@$loc"
-            fg="$dir/images/feature_graphic.png"
-            [ -f "$fg" ] && add "feature_graphic$suffix" "$fg"
-            shots=$(find "$dir" -path '*phoneScreenshots*' -name '*.png' 2>/dev/null | sort | paste -sd, - || true)
-            if [ -n "$shots" ]; then
-              add "phone_screenshots$suffix" "$shots"
-            elif [ "$loc" = "$default_locale" ]; then
-              echo "::warning::No phone screenshots — Play requires at least two."
+            [ "$locale" = "$default_locale" ] || suffix="@$locale"
+
+            feature_graphic="$locale_dir/images/feature_graphic.png"
+            [ -f "$feature_graphic" ] && add "feature_graphic$suffix" "$feature_graphic"
+
+            screenshots=$(find "$locale_dir" -path '*phoneScreenshots*' -name '*.png' | sort | paste -sd, - || true)
+            if [ -n "$screenshots" ]; then
+              add "phone_screenshots$suffix" "$screenshots"
+            elif [ "$locale" = "$default_locale" ]; then
+              echo "::warning::No phone screenshots found. Play requires at least two."
             fi
           done
 
-          # Which languages are actually filled is the project's answer, not this
-          # build's: assets for a language nobody asked for simply go unused.
-          {
-            echo "params<<FF_EOF"
-            printf '%s' "$params"
-            echo "FF_EOF"
-          } >> "$GITHUB_OUTPUT"
-          printf 'Listing assets:\n%s' "$params"
+          printf 'Files to upload:\n%s' "$files"
+          { echo "list<<EOF"; printf '%s' "$files"; echo "EOF"; } >> "$GITHUB_OUTPUT"
 
-      # A repository copy is optional. Without one the file uploaded against the
-      # project in FlavorFlow is used; with one, it wins — which is the escape
-      # hatch for a client whose declaration differs from the project's.
-      - name: Look for a Data safety CSV in the repository
-        id: csv
+      # Written by the build next to the bundle.
+      - name: Read the bundle's version
+        id: version
         run: |
-          set -euo pipefail
+          info=$(find bundle -name release-info.json | head -1)
+          [ -n "$info" ] || { echo "::notice::No release-info.json; the version will not be saved."; exit 0; }
+          echo "name=$(jq -r .version_name "$info")" >> "$GITHUB_OUTPUT"
+          echo "code=$(jq -r .version_code "$info")" >> "$GITHUB_OUTPUT"
+
+      # Optional. Without it, the Data safety CSV uploaded in FlavorFlow is used.
+      - name: Find a Data safety CSV in this repository
+        id: data_safety
+        run: |
           if [ -f play/data-safety.csv ]; then
-            echo "path=$(pwd)/play/data-safety.csv" >> "$GITHUB_OUTPUT"
-            echo "Using the repository's play/data-safety.csv."
-          else
-            echo "path=" >> "$GITHUB_OUTPUT"
-            echo "No play/data-safety.csv here — using whatever is uploaded to the project."
+            echo "csv=$(pwd)/play/data-safety.csv" >> "$GITHUB_OUTPUT"
           fi
 
-      # Records the whole console session. Useful twice over: to see what the
-      # automation actually did when a form misbehaves, and because a run of
-      # this is worth showing people.
-      #
-      # Toggled by a repository variable rather than a workflow input — the
-      # dispatch inputs are at GitHub's cap of ten. Set RECORD_SCREEN=false to
-      # turn it off.
+      # Set the repository variable RECORD_SCREEN=false to turn this off.
       - name: Start screen recording
-        id: rec
+        id: start_recording
         if: vars.RECORD_SCREEN != 'false'
         run: |
           set -euo pipefail
+          video="$RUNNER_TEMP/play-console-${{ github.run_id }}.mp4"
           log="$RUNNER_TEMP/recorder.log"
-          if command -v ffmpeg >/dev/null 2>&1; then
-            out="$RUNNER_TEMP/console-run-${{ github.run_id }}.mp4"
-            # Ask which device is the screen rather than assuming an index.
-            # They are machine-specific: on the box this was written, index 1
-            # is a webcam and the screen is 3, so a hardcoded "1" would have
-            # filmed the camera for forty minutes.
-            # `|| true` because listing devices is not a success to ffmpeg:
-            # it has no real input and exits 251, which under `set -e` failed
-            # the step and took the whole job with it.
-            screen=$(ffmpeg -f avfoundation -list_devices true -i "" 2>&1 \
-              | awk -F'[][]' '/Capture screen/ {print $4; exit}' || true)
-            if [ -z "${screen:-}" ]; then
-              echo "::warning::No screen capture device found; not recording."
-              exit 0
-            fi
-            echo "Recording screen device $screen."
-            # Four frames a second, scaled to 1280 wide: a forty-minute run is
-            # tens of megabytes instead of gigabytes, still readable for
-            # diagnosis and fine to cut a clip from. ":none" takes no audio.
-            ffmpeg -nostdin -y -f avfoundation -framerate 4 -i "${screen}:none" \
-              -vf "scale=1280:-2" -c:v libx264 -preset veryfast -pix_fmt yuv420p \
-              "$out" > "$log" 2>&1 &
-          else
-            # Always present on macOS, but it records at full resolution and
-            # the file is much larger.
-            out="$RUNNER_TEMP/console-run-${{ github.run_id }}.mov"
-            echo "::notice::ffmpeg not found; falling back to screencapture (larger file)."
-            screencapture -v "$out" > "$log" 2>&1 &
+          if ! command -v ffmpeg >/dev/null; then
+            echo "::warning::ffmpeg is not installed; not recording."
+            exit 0
           fi
-          pid=$!
-          echo "$pid" > "$RUNNER_TEMP/recorder.pid"
-          echo "path=$out" >> "$GITHUB_OUTPUT"
+          # ffmpeg exits non-zero when only listing devices, hence `|| true`.
+          screen_device=$(ffmpeg -f avfoundation -list_devices true -i "" 2>&1 \
+            | awk -F'[][]' '/Capture screen/ {print $4; exit}' || true)
+          if [ -z "$screen_device" ]; then
+            echo "::warning::No screen capture device found; not recording."
+            exit 0
+          fi
+          ffmpeg -nostdin -y -f avfoundation -framerate 4 -i "${screen_device}:none" \
+            -vf "scale=1280:-2" -c:v libx264 -preset veryfast -pix_fmt yuv420p \
+            "$video" > "$log" 2>&1 &
+          echo "$!" > "$RUNNER_TEMP/recorder.pid"
+          echo "video=$video" >> "$GITHUB_OUTPUT"
           sleep 4
-          if ! kill -0 "$pid" 2>/dev/null; then
-            # Almost always the permission: the runner's process needs Screen
-            # Recording in System Settings → Privacy & Security, and macOS
-            # denies it silently to a background service.
-            echo "::warning::The recorder stopped immediately, so this run will not be recorded."
-            cat "$log" || true
+          if ! kill -0 "$(cat "$RUNNER_TEMP/recorder.pid")" 2>/dev/null; then
+            echo "::warning::Recording stopped at once. Grant the runner Screen Recording in System Settings → Privacy & Security."
+            cat "$log"
           fi
 
-      - name: Create the app and fill its forms, and release it
-        id: play
-        # Pinned, both halves together. The action and the form-cli it
-        # downloads are released as one thing, and 'main' plus 'latest'
-        # let them drift apart: a run has already picked up an action
-        # that expected a CLI nobody had published yet. Move both when
-        # moving either.
-        uses: FlavorFlow-io/create-play-app-action@v1.2.0
+      - name: Create the Play app, fill its forms and release it
+        id: create_app
+        # Keep the action and cli-version on the same release.
+        uses: FlavorFlow-io/create-play-app-action@v1.2.1
         with:
-          cli-version: v1.2.0
+          cli-version: v1.2.1
           api-key: ${{ secrets.TEST_API_KEY }}
           project-id: ${{ inputs.project_id }}
           client-id: ${{ inputs.client_id }}
           app-name: ${{ inputs.app_name }}
-          # "all" is filtered by the project's saved answers, so a form the
-          # project has no answers for simply does not run. It includes the
-          # internal testing release, which is why the bundle is passed here:
-          # one browser session does the whole job, and a missing bundle fails
-          # the run before it opens one rather than half-way through.
           form: all
-          # Facts about this build rather than answers about the client, so
-          # they travel as params instead of living in the saved answers.
-          # One expression, not a block: the lines are read as k=v without
-          # trimming, so an indented continuation would carry its spaces into
-          # the key.
-          form-params: ${{ steps.aab.outputs.params }}
-          data-safety-csv: ${{ steps.csv.outputs.path }}
-          app-id: ${{ inputs.play_app_id }}
-          # Whether this happens is the workspace's setting in Store
-          # Integrations, not this line.
+          form-params: ${{ steps.upload_files.outputs.list }}
+          data-safety-csv: ${{ steps.data_safety.outputs.csv }}
+          version-name: ${{ steps.version.outputs.name }}
+          version-code: ${{ steps.version.outputs.code }}
           grant-service-account: true
-          # Promotion runs in the same session as the release it promotes.
-          # `countries` is deliberately not passed: the form reads it from the
-          # project's saved answers, so it is set once in the app.
           publish-to-production: ${{ inputs.publish_to_production }}
 
-
       - name: Stop screen recording
-        id: recstop
-        if: always() && vars.RECORD_SCREEN != 'false'
+        if: always() && steps.start_recording.outputs.video != ''
         run: |
-          set -uo pipefail
           pid=$(cat "$RUNNER_TEMP/recorder.pid" 2>/dev/null || true)
-          if [ -n "$pid" ]; then
-            # SIGINT, not SIGKILL: the encoder has to write the file's trailer
-            # or the recording will not play back at all.
-            kill -INT "$pid" 2>/dev/null || true
-            for _ in $(seq 1 60); do kill -0 "$pid" 2>/dev/null || break; sleep 1; done
-            kill -9 "$pid" 2>/dev/null || true
-          fi
-          out="${{ steps.rec.outputs.path }}"
-          if [ -n "${out:-}" ] && [ -s "$out" ]; then
-            echo "path=$out" >> "$GITHUB_OUTPUT"
-            echo "Recorded $(du -h "$out" | cut -f1) to $(basename "$out")."
-          else
-            echo "::warning::No recording was produced."
-          fi
+          [ -n "$pid" ] || exit 0
+          # SIGINT lets ffmpeg finish writing the file so it can be played.
+          kill -INT "$pid" 2>/dev/null || true
+          for _ in $(seq 1 60); do kill -0 "$pid" 2>/dev/null || break; sleep 1; done
+          kill -9 "$pid" 2>/dev/null || true
 
       - name: Upload the recording
-        if: always() && steps.recstop.outputs.path != ''
+        if: always() && steps.start_recording.outputs.video != ''
         uses: actions/upload-artifact@v4
         with:
-          name: console-recording-${{ github.run_id }}
-          path: ${{ steps.recstop.outputs.path }}
+          name: play-console-recording-${{ github.run_id }}
+          path: ${{ steps.start_recording.outputs.video }}
           retention-days: 14
           if-no-files-found: warn
 
-      # Without this the id lives only in this runner's state file and in this
-      # log, so FlavorFlow cannot say which clients have an app, and a wiped or
-      # replaced runner loses it. The runner can still re-derive it from the
-      # package name, but that means driving a browser to answer a question the
-      # database should already know.
-      - name: Record the Play app id against the client
-        if: steps.play.outputs.app-id != ''
-        env:
-          API_KEY: ${{ secrets.TEST_API_KEY }}
-          APP_ID: ${{ steps.play.outputs.app-id }}
-          # Half of a Play Console link, and the only place it is known: the
-          # developer account comes off the runner's signed-in session.
-          DEVELOPER_ID: ${{ steps.play.outputs.developer-id }}
-        run: |
-          set -euo pipefail
-          # What was released, alongside the app it was released to. The build
-          # writes this next to the bundle; without it the app can only say a
-          # client has an app, not which version of it is on Play.
-          info=$(find "$RUNNER_TEMP" . -name release-info.json 2>/dev/null | head -1)
-          body=$(jq -n --arg id "$APP_ID" '{play_app_id: $id}')
-          if [ -n "$info" ]; then
-            body=$(jq -n \
-              --arg id "$APP_ID" \
-              --arg dev "$DEVELOPER_ID" \
-              --arg at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-              --slurpfile v "$info" \
-              '{play_app_id: $id,
-                developer_id: (if $dev == "" then null else $dev end),
-                last_release_version_name: $v[0].version_name,
-                last_release_version_code: $v[0].version_code,
-                last_release_submitted_at: $at}')
-            echo "Reporting $(jq -c . <<<"$body")"
-          else
-            echo "::notice::No release-info.json beside the bundle — recording the app id only."
-          fi
-          code=$(curl -sS -o /tmp/rec.json -w '%{http_code}' -X PUT \
-            -H "Authorization: Bearer $API_KEY" -H 'Content-Type: application/json' \
-            -d "$body" \
-            "https://api.flavorflow.io/v1/projects/${{ inputs.project_id }}/clients/${{ inputs.client_id }}")
-          if [ "$code" = "200" ] || [ "$code" = "201" ]; then
-            echo "Recorded Play app id $APP_ID against the client."
-          else
-            # A warning, not a failure: the app exists and was released either
-            # way, and losing the bookkeeping should not fail the publish.
-            echo "::warning::Could not record the Play app id (HTTP $code): $(cat /tmp/rec.json)"
-          fi
-
-      - name: Report
+      - name: Summary
         run: |
           {
-            echo "### First release (console)"
-            echo "- App id: \`${{ steps.play.outputs.app-id }}\`"
-            echo "- Created this run: ${{ steps.play.outputs.created }}"
+            echo "### First release"
+            echo "- Play app id: \`${{ steps.create_app.outputs.app-id }}\`"
+            echo "- Version: ${{ steps.version.outputs.name }} (${{ steps.version.outputs.code }})"
+            echo "- Created in this run: ${{ steps.create_app.outputs.created }}"
             echo ""
-            echo "This package is now published, so every later run goes through"
-            echo "**Release White-Label Update** instead."
+            echo "Next releases run through **Release White-Label Update**."
           } >> "$GITHUB_STEP_SUMMARY"

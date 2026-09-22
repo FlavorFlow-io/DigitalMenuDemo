@@ -1,18 +1,9 @@
-# Ships a new build of a client whose app already exists in Google Play.
+# Releases a new build of a client that is already on Google Play, through
+# the Play Developer API. A client's first release goes through
+# create-play-app.yml instead.
 #
-# Builds the client, then uploads through the Play Developer API — no browser,
-# no self-hosted runner, no signed-in session. That is only possible once the
-# package has had a first release made through the console, because Google
-# refuses the first artifact of a new app over the API. create-play-app.yml is
-# what gets a client to that point; this is every release after it.
-#
-# The developer account is read off the signed-in session when promoting, so
-# there is nothing to configure for it.
-#
-# Setup (Settings → Secrets and variables → Actions):
-#   Secret   TEST_API_KEY               = FlavorFlow project API key
-#   Secret   PLAY_SERVICE_ACCOUNT_JSON  = Play service-account key, whole JSON
-#   Variable TEST_PROJECT_ID            = FlavorFlow project id
+# Needs the secrets TEST_API_KEY and PLAY_SERVICE_ACCOUNT_JSON (the whole
+# service-account key) and the variable TEST_PROJECT_ID.
 name: Release White-Label Update
 
 on:
@@ -38,20 +29,13 @@ on:
         description: 'Package name — fastlane uploads against this'
         required: false
         default: ''
-      play_app_id:
-        description: 'Play app id, used only when promoting through the console'
-        required: false
-        default: ''
       publish_to_production:
-        description: >-
-          Promote this release to production. Off by default: it is public and
-          it is not reversible.
+        description: 'Also publish to production (public, cannot be undone)'
         type: boolean
         required: false
         default: false
 
 jobs:
-  # The same build every other path uses, called rather than duplicated.
   build:
     name: Build
     if: inputs.client_id != ''
@@ -61,7 +45,6 @@ jobs:
       client_name: ${{ inputs.client_name }}
     secrets: inherit
 
-  # No browser, no self-hosted runner, no signed-in session.
   internal-release:
     name: Internal release for '${{ inputs.client_name }}' (fastlane)
     needs: build
@@ -76,7 +59,7 @@ jobs:
           path: bundle
 
       - name: Locate the bundle
-        id: aab
+        id: bundle
         run: |
           set -euo pipefail
           aab=$(find bundle -name '*.aab' | head -1)
@@ -93,7 +76,6 @@ jobs:
 
       - name: Upload to internal testing
         env:
-          # json_key_data takes the key as a value, so it never lands on disk.
           SUPPLY_JSON_KEY_DATA: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           FASTLANE_SKIP_UPDATE_CHECK: '1'
           FASTLANE_HIDE_CHANGELOG: '1'
@@ -102,7 +84,7 @@ jobs:
           set -euo pipefail
           fastlane supply \
             --package_name '${{ inputs.package_name }}' \
-            --aab '${{ steps.aab.outputs.path }}' \
+            --aab '${{ steps.bundle.outputs.path }}' \
             --track internal \
             --release_status completed \
             --skip_upload_metadata true --skip_upload_images true \
@@ -113,15 +95,9 @@ jobs:
           {
             echo "### Internal release (fastlane)"
             echo "- Package: \`${{ inputs.package_name }}\`"
-            echo "- Bundle: \`$(basename '${{ steps.aab.outputs.path }}')\`"
+            echo "- Bundle: \`$(basename '${{ steps.bundle.outputs.path }}')\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
-  # Its own job because everything before this point is reversible — a draft is
-  # discardable, an internal release only reaches testers — and this is not.
-  #
-  # Promotion goes through the console action rather than fastlane so there is
-  # one implementation of it: the same one create-play-app.yml uses, and the
-  # only one that can set the countries a production release cannot go without.
   promote-to-production:
     name: Promote '${{ inputs.client_name }}' to production
     needs: internal-release
@@ -131,25 +107,16 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Promote in Play Console
-        # Pinned, both halves together. The action and the form-cli it
-        # downloads are released as one thing, and 'main' plus 'latest'
-        # let them drift apart: a run has already picked up an action
-        # that expected a CLI nobody had published yet. Move both when
-        # moving either.
-        uses: FlavorFlow-io/create-play-app-action@v1.2.0
+        # Keep the action and cli-version on the same release.
+        uses: FlavorFlow-io/create-play-app-action@v1.2.1
         with:
-          cli-version: v1.2.0
+          cli-version: v1.2.1
           api-key: ${{ secrets.TEST_API_KEY }}
           project-id: ${{ inputs.project_id }}
           client-id: ${{ inputs.client_id }}
           app-name: ${{ inputs.app_name }}
-          app-id: ${{ inputs.play_app_id }}
-          # No `form`: this run exists only to promote.
           form: ''
           publish-to-production: true
-          # `countries` is not passed: production_countries_form reads it from
-          # the project's saved answers, so the set lives in one place and a
-          # client can override it.
 
       - name: Report
         run: |

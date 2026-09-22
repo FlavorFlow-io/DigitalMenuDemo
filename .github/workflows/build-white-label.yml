@@ -1,24 +1,11 @@
-# Builds one branded APK and signed bundle per FlavorFlow client from this
-# single codebase.
+# Builds a branded APK, signed bundle and store images for each FlavorFlow
+# client. create-play-app.yml and release-white-label-update.yml call it
+# before publishing; run it alone to build without publishing.
 #
-# 1. fetch-flavors-action  → pulls every client from your FlavorFlow project
-# 2. apply-flavor-action   → rewrites theme (Color.kt/Theme.kt), app_name,
-#                            applicationId and launcher icon for that client
-# 3. ./gradlew             → APK, signed .aab, store screenshots and icon,
-#                            all uploaded as run artifacts
-#
-# This is the shared half of the pipeline: create-play-app.yml and
-# release-white-label-update.yml both call it and then publish what it built.
-# Run it on its own to build without publishing anything.
-#
-# Setup (Settings → Secrets and variables → Actions):
-#   Secret   TEST_API_KEY     = your FlavorFlow project API key
-#   Variable TEST_PROJECT_ID  = your FlavorFlow project id
+# Needs the secret TEST_API_KEY and the variable TEST_PROJECT_ID.
 name: White-Label Build
 
 on:
-  # Called by whichever workflow is going to publish the result. Its inputs are
-  # only what narrows the build; the publishing details belong to the caller.
   workflow_call:
     inputs:
       client_id:
@@ -32,11 +19,7 @@ on:
         default: ''
     outputs:
       client_name:
-        description: >-
-          The client's real name, read from the project rather than from the
-          dispatch. client_name is optional on dispatch, so a caller naming a
-          job after its input alone ends up with a blank or an id; a job name
-          can read this because it resolves with the job it depends on.
+        description: "The client's name as saved in FlavorFlow"
         value: ${{ jobs.fetch-flavors.outputs.client_name }}
 
   push:
@@ -65,9 +48,6 @@ jobs:
           api-key: ${{ secrets.TEST_API_KEY }}
           project-id: ${{ vars.TEST_PROJECT_ID }}
 
-      # A client.added event concerns exactly one client, so building all of
-      # them would waste most of the run. `config` is the client JSON as a
-      # string and its `id` is the same id FlavorFlow sends as client_id.
       - name: Select clients to build
         id: select
         env:
@@ -83,8 +63,6 @@ jobs:
               '[.[] | select((.config | fromjson).id == $id)]' <<< "$ALL_FLAVORS")
             count=$(jq 'length' <<< "$selected")
             if [ "$count" -eq 0 ]; then
-              # Also the normal path for FlavorFlow's "send test event" button,
-              # whose synthetic client never matches a real one.
               echo "::warning::No client matches id '$CLIENT_ID' — nothing to build. \
           The dispatch itself succeeded; this is expected for a test event or a disabled client."
             else
@@ -92,9 +70,6 @@ jobs:
             fi
           fi
           echo "flavors=$selected" >> "$GITHUB_OUTPUT"
-          # The client's own name, so a caller can title its jobs with it. The
-          # dispatch may not carry one — FlavorFlow sends it, a person running
-          # this by hand usually does not — and this is read from the project.
           echo "client_name=$(jq -r 'first(.[] | .name) // empty' <<< "$selected")" >> "$GITHUB_OUTPUT"
 
       - name: Summarise what is being built
@@ -113,14 +88,10 @@ jobs:
             echo "- Clients to build: $(jq 'length' <<< "$SELECTED")"
           } >> "$GITHUB_STEP_SUMMARY"
 
-  # Asks Play whether the API will accept an upload for this package. The same
-  # question fastlane would hit on its first call, asked cheaply and without
-  # publishing anything: an edit is opened and immediately deleted.
   build-flavors:
     name: Build '${{ matrix.name }}'
     needs: fetch-flavors
-    # An empty matrix is a hard error, so skip the job when the filter above
-    # selected nothing rather than failing the run.
+    # An empty matrix is an error, so skip when no client was selected.
     if: needs.fetch-flavors.outputs.flavors != '[]'
     runs-on: ubuntu-latest
     strategy:
@@ -131,11 +102,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      # Besides the theme, app name, package and icon, this downloads the client's
-      # asset variables and exports each one's path — `menu_json` becomes $MENU_JSON,
-      # which :app:prepareMenuAssets reads to bundle that client's menu and photos.
-      # Without it (a fork with no API key, a local run) the build falls back to the
-      # checked-in app/menu/menu.json.
+      # Also exports the client's assets, e.g. $MENU_JSON for its menu.
       - name: Apply branding
         uses: FlavorFlow-io/apply-flavor-action@v1
         with:
@@ -147,11 +114,7 @@ jobs:
         with:
           distribution: 'jetbrains'
           java-version: '21'
-          # Downloading the JDK is a GitHub API call, and without a token it is
-          # anonymous: sixty an hour shared with every other runner leaving the
-          # same address, which two builds in a row spent before they could
-          # fetch anything. The repo's own token raises that to a thousand.
-          token: ${{ github.token }}
+          token: ${{ github.token }} # avoids the anonymous API rate limit
 
       - name: Cache Gradle packages
         uses: actions/cache@v5
@@ -160,13 +123,7 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle/libs.versions.toml') }}
           restore-keys: ${{ runner.os }}-gradle
 
-      # apply-flavor-action rewrites the app's package, but only fully for src/main.
-      # Under src/test and src/screenshots it moves the files and rewrites the
-      # `package` line, then leaves every `import io.flavorflow.demo.…` pointing at
-      # a package that no longer exists — so anything importing an app class stops
-      # compiling for every client whose package differs. storeScreenshots depends
-      # on testDebugUnitTest, so that breaks the listing art too, not just the tests.
-      # Follow the namespace apply-flavor-action actually left behind.
+      # apply-flavor-action only fully renames the package in src/main.
       - name: Point the test and screenshot sources at this client's package
         run: |
           set -euo pipefail
@@ -178,42 +135,25 @@ jobs:
           fi
           old_path=$(echo "$old" | tr . /)
           new_path=$(echo "$ns" | tr . /)
-          # Both roots Gradle compiles for :app:testDebugUnitTest. androidTest has
-          # the same flaw but nothing in this pipeline builds it.
           for src in app/src/screenshots/kotlin app/src/test/java; do
-            # apply-flavor-action may already have moved them; take whichever exists.
             for from in "$src/$old_path" "$src/$new_path"; do
               [ -d "$from" ] || continue
               dest="$src/$new_path"
               mkdir -p "$dest"
               [ "$from" = "$dest" ] || find "$from" -name '*.kt' -exec mv {} "$dest/" \;
-              # Rewrite imports and anything else naming the old package, including
-              # the R class the namespace change moved. perl rather than sed -i,
-              # which differs between GNU and BSD and so cannot be checked anywhere
-              # but the runner; \Q quotes the dots, \b keeps a longer package that
-              # merely starts with this one intact.
               find "$dest" -name '*.kt' -exec perl -pi -e "s/\Q$old\E\b/$ns/g" {} +
             done
             rm -rf "${src:?}/io"
             echo "  $src -> $ns"
           done
 
-      # After apply-flavor-action, so the images carry this client's branding *and*
-      # its menu: they are rendered from the app's own composables, under its own
-      # theme, over the products :app:prepareMenuAssets just bundled.
       - name: Generate store screenshots
         run: ./gradlew :app:storeScreenshots --stacktrace
 
-      # Play's listing icon is 512x512 and the launcher densities top out at
-      # 192, so it is generated from the same logo apply-flavor-action already
-      # downloaded rather than upscaled from a mipmap.
+      # Play needs a 512x512 icon, larger than any launcher icon.
       - name: Generate the store icon from the client logo
         run: |
           set -euo pipefail
-          # `|| true`, and the directory test, because pipefail makes a failing
-          # find abort the assignment itself — so the "no logo" branch below was
-          # unreachable and a client without a logo failed the build instead of
-          # warning. Which is what happened to two of them.
           logo=""
           if [ -d assets/logos ]; then
             logo=$(find assets/logos -type f \( -name '*.png' -o -name '*.jpg' -o -name '*.jpeg' -o -name '*.webp' \) 2>/dev/null | head -1 || true)
@@ -222,8 +162,6 @@ jobs:
             echo "::warning::No logo for this client — its store listing will have no icon, which Play requires before a listing can be published."
             exit 0
           fi
-          # java rather than ImageMagick: `convert` is not on the runner image
-          # any more, and this exited 127 on every leg for two days.
           java tools/MakeIcon.java "$logo" app/screenshots/en-US/images/icon.png
 
       - name: Upload store screenshots
@@ -242,8 +180,7 @@ jobs:
           name: app-${{ matrix.name }}.apk
           path: '**/outputs/**/*.apk'
 
-      # Signing secrets are absent in forks, where the debug APK above is still
-      # worth having — so the release bundle is skipped rather than failing.
+      # Without signing secrets (e.g. in forks) only the debug APK is built.
       - name: Check for signing secrets
         id: signing
         env:
@@ -262,7 +199,6 @@ jobs:
           KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
           set -euo pipefail
-          # Outside the workspace so it cannot be picked up by an artifact glob.
           echo "$KEYSTORE" | base64 -d > "$RUNNER_TEMP/upload.jks"
           chmod 600 "$RUNNER_TEMP/upload.jks"
 
@@ -276,36 +212,13 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           set -euo pipefail
-          # Play rejects a versionCode it has already seen, and refuses a
-          # release whose code is lower than one already uploaded.
-          #
-          # run_number counts per workflow, not per repo, and inside a reusable
-          # workflow it is the caller's. A build from Create Play App (run 1)
-          # therefore produced versionCode 1 while the app already had codes in
-          # the forties from White-Label Build, and Play rejected the release as
-          # "completely shadowed by one or more APKs with higher version codes".
-          # Re-running a run does not change run_number either, so a retry
-          # collided with the build it was retrying.
-          #
-          # Minutes since 2026, times ten, plus the attempt: seven digits rather
-          # than nine, and still only ever upwards.
-          #
-          # Fewer digits than this cannot hold. Hours since 2026 would be four
-          # digits today and pass 9999 within a year, wrapping to a lower number
-          # — and Play never accepts a code below one it has seen, so publishing
-          # would stop for good. Days would be four digits but identical for two
-          # builds on the same day, which is the collision this is here to avoid.
-          #
-          # The attempt in the last digit is what makes a re-run differ from the
-          # run it retries even when both start inside the same minute.
+          # Play only accepts increasing version codes. Minutes since 2026,
+          # times ten, plus the run attempt: always higher, even on a re-run.
           attempt=${{ github.run_attempt }}
           [ "$attempt" -gt 9 ] && attempt=9
           version_code=$(( ($(date -u +%s) - 1767225600) / 60 * 10 + attempt ))
           version_name="1.0.${{ github.run_number }}.${{ github.run_attempt }}"
           echo "versionCode=$version_code  versionName=$version_name"
-          # Reported onwards so what reached Play can be recorded against the
-          # client. Nothing else knows it: the code is derived here, and Play's
-          # API will not say when a release was submitted.
           {
             echo "version_code=$version_code"
             echo "version_name=$version_name"
@@ -318,12 +231,8 @@ jobs:
         if: steps.signing.outputs.available == 'true'
         run: |
           set -euo pipefail
-          # Must be the packaged output, not intermediates/: the intermediary
-          # bundle is the pre-signing artifact and never carries a signature.
           aab=$(find . -path '*/outputs/bundle/release/*.aab' | head -1)
           [ -n "$aab" ] || { echo "::error::No .aab in outputs/bundle/release"; exit 1; }
-          # An unsigned bundle still builds, so assert the signature block
-          # rather than trusting a green build.
           if ! unzip -l "$aab" | grep -qiE 'META-INF/.*\.RSA'; then
             echo "::error::$aab has no signature block — it built unsigned."
             exit 1
@@ -331,8 +240,7 @@ jobs:
           echo "Signed: $aab"
           jarsigner -verify "$aab" | head -1
 
-      # Travels with the bundle rather than as a job output: this job is a
-      # matrix, so an output would be whichever client finished last.
+      # Read by create-play-app.yml to save the released version in FlavorFlow.
       - name: Record what this bundle is
         if: steps.signing.outputs.available == 'true'
         run: |
