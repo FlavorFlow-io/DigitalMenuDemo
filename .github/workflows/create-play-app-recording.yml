@@ -1,0 +1,99 @@
+# NOT REQUIRED - Just for debug
+#
+# Runs create-play-app.yml while recording the runner's screen, so you can
+# watch what the automation did in Play Console. The video is uploaded as a
+# run artifact. Bind FlavorFlow to this file instead of create-play-app.yml to
+# record every run.
+#
+# Needs ffmpeg on the runner (`brew install ffmpeg`) and Screen Recording
+# permission for the runner in System Settings → Privacy & Security.
+name: Create Play App (with screen recording)
+
+# FlavorFlow matches runs to clients by the client id in this name.
+run-name: ${{ inputs.client_id && format('Client {0}', inputs.client_id) || 'Create Play App' }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      project_id:
+        description: 'FlavorFlow project id'
+        required: true
+      client_id:
+        description: 'FlavorFlow client id'
+        required: true
+      publish_to_production:
+        description: 'Also publish to production (public, cannot be undone)'
+        type: boolean
+        required: false
+        default: false
+
+env:
+  VIDEO: ~/play-console-recordings/${{ github.run_id }}.mp4
+
+jobs:
+  start_recording:
+    name: Start screen recording
+    runs-on: [self-hosted, macOS]
+    steps:
+      - name: Start ffmpeg
+        run: |
+          set -euo pipefail
+          video=$(eval echo "$VIDEO")
+          mkdir -p "$(dirname "$video")"
+          # ffmpeg exits non-zero when only listing devices, hence `|| true`.
+          screen_device=$(ffmpeg -f avfoundation -list_devices true -i "" 2>&1 \
+            | awk -F'[][]' '/Capture screen/ {print $4; exit}' || true)
+          [ -n "$screen_device" ] || { echo "::error::No screen capture device found."; exit 1; }
+          # An empty RUNNER_TRACKING_ID keeps the runner from stopping ffmpeg
+          # when this job ends, so it keeps recording through the next jobs.
+          RUNNER_TRACKING_ID="" nohup ffmpeg -nostdin -y -f avfoundation -framerate 4 \
+            -i "${screen_device}:none" -vf "scale=1280:-2" -c:v libx264 -preset veryfast \
+            -pix_fmt yuv420p "$video" > "$video.log" 2>&1 &
+          echo "$!" > "$video.pid"
+          sleep 4
+          if ! kill -0 "$(cat "$video.pid")" 2>/dev/null; then
+            echo "::error::Recording stopped at once. Grant the runner Screen Recording permission."
+            cat "$video.log"
+            exit 1
+          fi
+          echo "Recording to $video"
+
+  create_play_app:
+    needs: start_recording
+    uses: ./.github/workflows/create-play-app.yml
+    with:
+      project_id: ${{ inputs.project_id }}
+      client_id: ${{ inputs.client_id }}
+      publish_to_production: ${{ inputs.publish_to_production }}
+    secrets: inherit
+
+  stop_recording:
+    name: Stop screen recording
+    needs: [start_recording, create_play_app]
+    if: always() && needs.start_recording.result == 'success'
+    runs-on: [self-hosted, macOS]
+    steps:
+      - name: Stop ffmpeg
+        id: stop
+        run: |
+          video=$(eval echo "$VIDEO")
+          pid=$(cat "$video.pid" 2>/dev/null || true)
+          if [ -n "$pid" ]; then
+            # SIGINT lets ffmpeg finish writing the file so it can be played.
+            kill -INT "$pid" 2>/dev/null || true
+            for _ in $(seq 1 60); do kill -0 "$pid" 2>/dev/null || break; sleep 1; done
+            kill -9 "$pid" 2>/dev/null || true
+          fi
+          rm -f "$video.pid" "$video.log"
+          echo "video=$video" >> "$GITHUB_OUTPUT"
+
+      - name: Upload the recording
+        uses: actions/upload-artifact@v4
+        with:
+          name: play-console-recording-${{ github.run_id }}
+          path: ${{ steps.stop.outputs.video }}
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: Delete the local copy
+        run: rm -f "${{ steps.stop.outputs.video }}"

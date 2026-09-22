@@ -1,6 +1,6 @@
 # Releases a new build of a client that is already on Google Play, through
-# the Play Developer API. A client's first release goes through
-# create-play-app.yml instead.
+# the Play Developer API with fastlane. A client's first release goes through
+# create-play-app.yml instead, which also sets the production countries.
 #
 # Needs the secrets TEST_API_KEY and PLAY_SERVICE_ACCOUNT_JSON (the whole
 # service-account key) and the variable TEST_PROJECT_ID.
@@ -9,20 +9,12 @@ name: Release White-Label Update
 on:
   workflow_dispatch:
     inputs:
-      project_id:
-        description: 'FlavorFlow project id'
-        required: false
-        default: ''
       client_id:
         description: 'FlavorFlow client id to build and publish'
         required: false
         default: ''
       client_name:
         description: 'Client name (labels the run)'
-        required: false
-        default: ''
-      app_name:
-        description: 'App name'
         required: false
         default: ''
       package_name:
@@ -42,14 +34,18 @@ jobs:
     uses: ./.github/workflows/build-white-label.yml
     with:
       client_id: ${{ inputs.client_id }}
-      client_name: ${{ inputs.client_name }}
     secrets: inherit
 
-  internal-release:
-    name: Internal release for '${{ inputs.client_name }}' (fastlane)
+  release:
+    name: Release '${{ inputs.client_name }}'
     needs: build
     if: inputs.client_id != ''
     runs-on: ubuntu-latest
+    env:
+      SUPPLY_JSON_KEY_DATA: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+      FASTLANE_SKIP_UPDATE_CHECK: '1'
+      FASTLANE_HIDE_CHANGELOG: '1'
+      FASTLANE_OPT_OUT_USAGE: '1'
     steps:
       - name: Download the signed bundle
         uses: actions/download-artifact@v7
@@ -65,6 +61,8 @@ jobs:
           aab=$(find bundle -name '*.aab' | head -1)
           [ -n "$aab" ] || { echo "::error::No .aab to upload."; exit 1; }
           echo "path=$(cd "$(dirname "$aab")" && pwd)/$(basename "$aab")" >> "$GITHUB_OUTPUT"
+          info=$(find bundle -name release-info.json | head -1)
+          [ -n "$info" ] && echo "version_code=$(jq -r .version_code "$info")" >> "$GITHUB_OUTPUT"
           ls -lh "$aab"
 
       - uses: ruby/setup-ruby@v1
@@ -75,11 +73,6 @@ jobs:
         run: gem install fastlane -N --no-document
 
       - name: Upload to internal testing
-        env:
-          SUPPLY_JSON_KEY_DATA: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
-          FASTLANE_SKIP_UPDATE_CHECK: '1'
-          FASTLANE_HIDE_CHANGELOG: '1'
-          FASTLANE_OPT_OUT_USAGE: '1'
         run: |
           set -euo pipefail
           fastlane supply \
@@ -90,38 +83,28 @@ jobs:
             --skip_upload_metadata true --skip_upload_images true \
             --skip_upload_screenshots true --skip_upload_changelogs true
 
-      - name: Report
+      - name: Promote to production
+        if: inputs.publish_to_production
+        run: |
+          set -euo pipefail
+          version_code='${{ steps.bundle.outputs.version_code }}'
+          [ -n "$version_code" ] || { echo "::error::No version code for the bundle, so there is nothing to promote."; exit 1; }
+          fastlane supply \
+            --package_name '${{ inputs.package_name }}' \
+            --track internal \
+            --track_promote_to production \
+            --version_code "$version_code" \
+            --release_status completed \
+            --skip_upload_aab true --skip_upload_apk true \
+            --skip_upload_metadata true --skip_upload_images true \
+            --skip_upload_screenshots true --skip_upload_changelogs true
+
+      - name: Summary
         run: |
           {
-            echo "### Internal release (fastlane)"
+            echo "### Release"
             echo "- Package: \`${{ inputs.package_name }}\`"
-            echo "- Bundle: \`$(basename '${{ steps.bundle.outputs.path }}')\`"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-  promote-to-production:
-    name: Promote '${{ inputs.client_name }}' to production
-    needs: internal-release
-    if: inputs.publish_to_production && needs.internal-release.result == 'success'
-    runs-on: [self-hosted, macOS]
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Promote in Play Console
-        # Keep the action and cli-version on the same release.
-        uses: FlavorFlow-io/create-play-app-action@v1.2.2
-        with:
-          cli-version: v1.2.2
-          api-key: ${{ secrets.TEST_API_KEY }}
-          project-id: ${{ inputs.project_id }}
-          client-id: ${{ inputs.client_id }}
-          app-name: ${{ inputs.app_name }}
-          form: ''
-          publish-to-production: true
-
-      - name: Report
-        run: |
-          {
-            echo "### Promoted to production"
-            echo "- Package: \`${{ inputs.package_name }}\`"
-            echo "- Now in review with Google."
+            echo "- Version code: ${{ steps.bundle.outputs.version_code }}"
+            echo "- Internal testing: done"
+            echo "- Production: ${{ inputs.publish_to_production && 'submitted for review' || 'not requested' }}"
           } >> "$GITHUB_STEP_SUMMARY"

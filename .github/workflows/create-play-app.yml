@@ -25,6 +25,19 @@ on:
         type: boolean
         required: false
         default: false
+  # Called by create-play-app-recording.yml.
+  workflow_call:
+    inputs:
+      project_id:
+        type: string
+        required: true
+      client_id:
+        type: string
+        required: true
+      publish_to_production:
+        type: boolean
+        required: false
+        default: false
 
 jobs:
   build:
@@ -59,72 +72,20 @@ jobs:
           merge-multiple: true
           path: listing
 
-      # NOT REQUIRED - Just for debug
-      # Set the repository variable RECORD_SCREEN=false to turn this off.
-      - name: Start screen recording
-        id: start_recording
-        if: vars.RECORD_SCREEN != 'false'
-        run: |
-          set -euo pipefail
-          video="$RUNNER_TEMP/play-console-${{ github.run_id }}.mp4"
-          log="$RUNNER_TEMP/recorder.log"
-          if ! command -v ffmpeg >/dev/null; then
-            echo "::warning::ffmpeg is not installed; not recording."
-            exit 0
-          fi
-          # ffmpeg exits non-zero when only listing devices, hence `|| true`.
-          screen_device=$(ffmpeg -f avfoundation -list_devices true -i "" 2>&1 \
-            | awk -F'[][]' '/Capture screen/ {print $4; exit}' || true)
-          if [ -z "$screen_device" ]; then
-            echo "::warning::No screen capture device found; not recording."
-            exit 0
-          fi
-          ffmpeg -nostdin -y -f avfoundation -framerate 4 -i "${screen_device}:none" \
-            -vf "scale=1280:-2" -c:v libx264 -preset veryfast -pix_fmt yuv420p \
-            "$video" > "$log" 2>&1 &
-          echo "$!" > "$RUNNER_TEMP/recorder.pid"
-          echo "video=$video" >> "$GITHUB_OUTPUT"
-          sleep 4
-          if ! kill -0 "$(cat "$RUNNER_TEMP/recorder.pid")" 2>/dev/null; then
-            echo "::warning::Recording stopped at once. Grant the runner Screen Recording in System Settings → Privacy & Security."
-            cat "$log"
-          fi
-
       - name: Create the Play app, fill its forms and release it
         id: create_app
         # Keep the action and cli-version on the same release.
-        uses: FlavorFlow-io/create-play-app-action@v1.2.2
+        uses: FlavorFlow-io/create-play-app-action@v1.2.3
         with:
-          cli-version: v1.2.2
+          cli-version: v1.2.3
           api-key: ${{ secrets.TEST_API_KEY }}
           project-id: ${{ inputs.project_id }}
           client-id: ${{ inputs.client_id }}
           form: all
-          bundle: bundle
-          store-listing: listing
+          aab-path: bundle
+          screenshots-path: listing
           grant-service-account: true
           publish-to-production: ${{ inputs.publish_to_production }}
-
-      # NOT REQUIRED - Just for debug
-      - name: Stop screen recording
-        if: always() && steps.start_recording.outputs.video != ''
-        run: |
-          pid=$(cat "$RUNNER_TEMP/recorder.pid" 2>/dev/null || true)
-          [ -n "$pid" ] || exit 0
-          # SIGINT lets ffmpeg finish writing the file so it can be played.
-          kill -INT "$pid" 2>/dev/null || true
-          for _ in $(seq 1 60); do kill -0 "$pid" 2>/dev/null || break; sleep 1; done
-          kill -9 "$pid" 2>/dev/null || true
-
-      # NOT REQUIRED - Just for debug
-      - name: Upload the recording
-        if: always() && steps.start_recording.outputs.video != ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: play-console-recording-${{ github.run_id }}
-          path: ${{ steps.start_recording.outputs.video }}
-          retention-days: 14
-          if-no-files-found: warn
 
       - name: Summary
         run: |
