@@ -8,39 +8,18 @@
 # Needs the secret TEST_API_KEY: a FlavorFlow project API key with write access.
 name: Create Play App
 
-# FlavorFlow matches runs to clients by this name.
-run-name: >-
-  ${{ inputs.client_id && format('{0} ({1})', inputs.client_name || 'client', inputs.client_id)
-   || 'Create Play App' }}
+# FlavorFlow matches runs to clients by the client id in this name.
+run-name: ${{ inputs.client_id && format('Client {0}', inputs.client_id) || 'Create Play App' }}
 
 on:
   workflow_dispatch:
-    # FlavorFlow sends all of these, so all must be declared.
     inputs:
-      event:
-        description: 'FlavorFlow event name (e.g. client.added)'
-        required: false
       project_id:
         description: 'FlavorFlow project id'
-        required: false
-      project_name:
-        description: 'FlavorFlow project name'
-        required: false
+        required: true
       client_id:
         description: 'FlavorFlow client id'
-        required: false
-      client_name:
-        description: 'Client name'
-        required: false
-      app_name:
-        description: 'App name'
-        required: false
-      package_name:
-        description: 'Package name'
-        required: false
-      payload:
-        description: 'Full event as JSON'
-        required: false
+        required: true
       publish_to_production:
         description: 'Also publish to production (public, cannot be undone)'
         type: boolean
@@ -50,17 +29,14 @@ on:
 jobs:
   build:
     name: Build
-    if: inputs.client_id != ''
     uses: ./.github/workflows/build-white-label.yml
     with:
       client_id: ${{ inputs.client_id }}
-      client_name: ${{ inputs.client_name }}
     secrets: inherit
 
   first_release:
     name: >-
-      First release for ${{ needs.build.outputs.client_name || inputs.client_name
-       || inputs.client_id || 'a new client' }}
+      First release for ${{ needs.build.outputs.client_name || inputs.client_id }}
     needs: build
     # Drives a real browser signed in to Play Console.
     runs-on: [self-hosted, macOS]
@@ -144,6 +120,7 @@ jobs:
             echo "csv=$(pwd)/play/data-safety.csv" >> "$GITHUB_OUTPUT"
           fi
 
+      # NOT REQUIRED - Just for debug
       # Set the repository variable RECORD_SCREEN=false to turn this off.
       - name: Start screen recording
         id: start_recording
@@ -183,7 +160,6 @@ jobs:
           api-key: ${{ secrets.TEST_API_KEY }}
           project-id: ${{ inputs.project_id }}
           client-id: ${{ inputs.client_id }}
-          app-name: ${{ inputs.app_name }}
           form: all
           form-params: ${{ steps.upload_files.outputs.list }}
           data-safety-csv: ${{ steps.data_safety.outputs.csv }}
@@ -192,6 +168,7 @@ jobs:
           grant-service-account: true
           publish-to-production: ${{ inputs.publish_to_production }}
 
+      # NOT REQUIRED - Just for debug
       - name: Stop screen recording
         if: always() && steps.start_recording.outputs.video != ''
         run: |
@@ -202,6 +179,7 @@ jobs:
           for _ in $(seq 1 60); do kill -0 "$pid" 2>/dev/null || break; sleep 1; done
           kill -9 "$pid" 2>/dev/null || true
 
+      # NOT REQUIRED - Just for debug
       - name: Upload the recording
         if: always() && steps.start_recording.outputs.video != ''
         uses: actions/upload-artifact@v4
