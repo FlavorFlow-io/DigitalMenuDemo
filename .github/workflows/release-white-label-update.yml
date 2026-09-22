@@ -108,9 +108,9 @@ jobs:
 
       - name: Promote in Play Console
         # Keep the action and cli-version on the same release.
-        uses: FlavorFlow-io/create-play-app-action@v1.2.1
+        uses: FlavorFlow-io/create-play-app-action@v1.2.2
         with:
-          cli-version: v1.2.1
+          cli-version: v1.2.2
           api-key: ${{ secrets.TEST_API_KEY }}
           project-id: ${{ inputs.project_id }}
           client-id: ${{ inputs.client_id }}

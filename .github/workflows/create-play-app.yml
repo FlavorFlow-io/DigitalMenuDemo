@@ -59,67 +59,6 @@ jobs:
           merge-multiple: true
           path: listing
 
-      # One `key=path` line per file. Translations get a `@locale` suffix,
-      # e.g. `phone_screenshots@pt-BR`.
-      - name: List the files to upload
-        id: upload_files
-        run: |
-          set -euo pipefail
-          default_locale=en-US
-          listing_dir=$(cd listing 2>/dev/null && pwd || echo /nonexistent)
-
-          bundle=$(find bundle -name '*.aab' | head -1)
-          if [ -z "$bundle" ]; then
-            echo "::error::No .aab was built. Are the signing secrets set?"
-            exit 1
-          fi
-          files="aab=$(cd "$(dirname "$bundle")" && pwd)/$(basename "$bundle")"$'\n'
-          add() { files="${files}$1=$2"$'\n'; }
-
-          icon="$listing_dir/$default_locale/images/icon.png"
-          if [ -f "$icon" ]; then
-            add app_icon "$icon"
-          else
-            echo "::warning::No app icon found."
-          fi
-
-          for locale_dir in "$listing_dir"/*/; do
-            [ -d "$locale_dir" ] || continue
-            locale=$(basename "$locale_dir")
-            suffix=""
-            [ "$locale" = "$default_locale" ] || suffix="@$locale"
-
-            feature_graphic="$locale_dir/images/feature_graphic.png"
-            [ -f "$feature_graphic" ] && add "feature_graphic$suffix" "$feature_graphic"
-
-            screenshots=$(find "$locale_dir" -path '*phoneScreenshots*' -name '*.png' | sort | paste -sd, - || true)
-            if [ -n "$screenshots" ]; then
-              add "phone_screenshots$suffix" "$screenshots"
-            elif [ "$locale" = "$default_locale" ]; then
-              echo "::warning::No phone screenshots found. Play requires at least two."
-            fi
-          done
-
-          printf 'Files to upload:\n%s' "$files"
-          { echo "list<<EOF"; printf '%s' "$files"; echo "EOF"; } >> "$GITHUB_OUTPUT"
-
-      # Written by the build next to the bundle.
-      - name: Read the bundle's version
-        id: version
-        run: |
-          info=$(find bundle -name release-info.json | head -1)
-          [ -n "$info" ] || { echo "::notice::No release-info.json; the version will not be saved."; exit 0; }
-          echo "name=$(jq -r .version_name "$info")" >> "$GITHUB_OUTPUT"
-          echo "code=$(jq -r .version_code "$info")" >> "$GITHUB_OUTPUT"
-
-      # Optional. Without it, the Data safety CSV uploaded in FlavorFlow is used.
-      - name: Find a Data safety CSV in this repository
-        id: data_safety
-        run: |
-          if [ -f play/data-safety.csv ]; then
-            echo "csv=$(pwd)/play/data-safety.csv" >> "$GITHUB_OUTPUT"
-          fi
-
       # NOT REQUIRED - Just for debug
       # Set the repository variable RECORD_SCREEN=false to turn this off.
       - name: Start screen recording
@@ -154,17 +93,15 @@ jobs:
       - name: Create the Play app, fill its forms and release it
         id: create_app
         # Keep the action and cli-version on the same release.
-        uses: FlavorFlow-io/create-play-app-action@v1.2.1
+        uses: FlavorFlow-io/create-play-app-action@v1.2.2
         with:
-          cli-version: v1.2.1
+          cli-version: v1.2.2
           api-key: ${{ secrets.TEST_API_KEY }}
           project-id: ${{ inputs.project_id }}
           client-id: ${{ inputs.client_id }}
           form: all
-          form-params: ${{ steps.upload_files.outputs.list }}
-          data-safety-csv: ${{ steps.data_safety.outputs.csv }}
-          version-name: ${{ steps.version.outputs.name }}
-          version-code: ${{ steps.version.outputs.code }}
+          bundle: bundle
+          store-listing: listing
           grant-service-account: true
           publish-to-production: ${{ inputs.publish_to_production }}
 
@@ -194,7 +131,6 @@ jobs:
           {
             echo "### First release"
             echo "- Play app id: \`${{ steps.create_app.outputs.app-id }}\`"
-            echo "- Version: ${{ steps.version.outputs.name }} (${{ steps.version.outputs.code }})"
             echo "- Created in this run: ${{ steps.create_app.outputs.created }}"
             echo ""
             echo "Next releases run through **Release White-Label Update**."
