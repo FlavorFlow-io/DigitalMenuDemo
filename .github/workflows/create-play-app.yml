@@ -74,7 +74,7 @@ jobs:
 
       - name: Create the Play app, fill its forms and release it
         id: create_app
-        uses: FlavorFlow-io/create-play-app-action@v1.2.4
+        uses: FlavorFlow-io/create-play-app-action@v1.0.0
         with:
           api-key: ${{ secrets.TEST_API_KEY }}
           project-id: ${{ inputs.project_id }}
